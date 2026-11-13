@@ -206,7 +206,7 @@
     background:linear-gradient(45deg,rgba(167,139,250,.04) 25%,transparent 25%,transparent 75%,rgba(167,139,250,.04) 75%),
       linear-gradient(45deg,rgba(167,139,250,.04) 25%,transparent 25%,transparent 75%,rgba(167,139,250,.04) 75%);
     background-size:24px 24px;background-position:0 0,12px 12px}
-  .selwrap img,.selwrap video{max-width:100%;max-height:320px;object-fit:contain;display:block;width:100%}
+  .selwrap img,.selwrap video,.selwrap canvas{max-width:100%;max-height:320px;object-fit:contain;display:block;width:100%}
   #overlay{position:absolute;inset:0;cursor:crosshair;touch-action:none;z-index:3}
   #selbox{position:absolute;border:1.5px solid var(--lime);background:rgba(190,242,100,.12);border-radius:7px;
     display:none;pointer-events:none;z-index:4;animation:glowPulse 1.8s ease-in-out infinite}
@@ -241,7 +241,7 @@
   #dl a:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 14px 40px rgba(103,232,249,.42)}
   /* maximized (fullscreen) result view */
   #cleanWrap:fullscreen{max-height:none;background:#04030a}
-  #cleanWrap:fullscreen img,#cleanWrap:fullscreen video{max-height:94vh;max-width:96vw;width:auto;height:auto}
+  #cleanWrap:fullscreen img,#cleanWrap:fullscreen video,#cleanWrap:fullscreen canvas{max-height:94vh;max-width:96vw;width:auto;height:auto}
   #cleanWrap:fullscreen .empty{display:none}
   #maxBtn{display:none}
   #maxBtn.on{display:inline-block}
@@ -476,6 +476,7 @@ const MSG = {
   m_uploaded: {{ t.tool.m_uploaded|tojson }},
   m_badfile: {{ t.tool.m_badfile|tojson }},
   m_lost: {{ t.tool.m_lost|tojson }},
+  m_engine: {{ t.tool.m_engine|tojson }},
   m_err: {{ t.tool.m_err|tojson }},
   m_toosmall: {{ t.tool.m_toosmall|tojson }},
   m_selected: {{ t.tool.m_selected|tojson }},
@@ -554,6 +555,32 @@ const actElapsed = document.getElementById('actElapsed');
 const maxBtn = document.getElementById('maxBtn');
 let file = null, kind = null, jobId = null, timer = null, shownLogs = 0;
 let uploadXHR = null, uploadSeq = 0, pollFails = 0;
+let cvReady = false, cvReadyPromise = null;
+
+// On-device engine (OpenCV.js, WASM): loads once in the background so
+// photos never leave the user's machine. Resolves false when offline
+// or unsupported — callers then fall back to the server pipeline.
+function ensureCv() {
+  if (cvReadyPromise) return cvReadyPromise;
+  cvReadyPromise = new Promise((resolve) => {
+    let settled = false;
+    const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+    setTimeout(() => done(false), 60000);
+    if (window.cv && cv.getBuildInformation) { cvReady = true; updateGo(); done(true); return; }
+    const s = document.createElement('script');
+    s.src = 'https://docs.opencv.org/4.x/opencv.js';
+    s.async = true;
+    s.onload = () => {
+      try {
+        cv.onRuntimeInitialized = () => { cvReady = true; updateGo(); done(true); };
+      } catch (e) { done(false); }
+    };
+    s.onerror = () => done(false);
+    document.head.appendChild(s);
+  });
+  return cvReadyPromise;
+}
+ensureCv(); // warm up on page load; photos are usually picked seconds later
 let clockTimer = null, t0 = 0;
 let mediaEl = null, natW = 0, natH = 0;
 let sel = null, drawing = false, startPt = null, downXY = null, downT = 0;
@@ -616,33 +643,50 @@ async function setFile(f) {
   }
   cleanWrap.innerHTML = '<div class="empty">' + MSG.empty2 + '</div>';
   maxBtn.classList.remove('on');
-  say(mf('m_queued', f.name, kind, natW, natH));
-  stageText.textContent = stg('select');
-  setPill(PILL.ready, '');
-  // A new file supersedes any in-flight upload: abort it so a stale
-  // response can never overwrite this file's job.
-  if (uploadXHR) { const x = uploadXHR; uploadXHR = null; try { x.abort(); } catch (e) {} }
-  const mySeq = ++uploadSeq;
-  const j = await uploadWithProgress(f);
-  if (mySeq !== uploadSeq) return;              // superseded by a newer file
-  if (!j || j.error === 'ABORTED') return;      // aborted: stay silent
-  uploadXHR = null;
-  if (j.error) {
-    if (j.error === 'TOOBIG') say(mf('m_err') + mf('m_toobig'), 'err');
-    else if (j.error === 'UPFAIL') say(mf('m_err') + mf('m_upfail'), 'err');
-    else say(mf('m_err') + j.error, 'err');
-    setPill(PILL.error, 'err');
-    stageText.textContent = stg('failed');
-    fill.style.width = '0%';
+  jobId = null;
+  if (kind === 'video') {
+    say(mf('m_queued', f.name, kind, natW, natH));
+    stageText.textContent = stg('select');
+    setPill(PILL.ready, '');
+    // A new file supersedes any in-flight upload: abort it so a stale
+    // response can never overwrite this file's job.
+    if (uploadXHR) { const x = uploadXHR; uploadXHR = null; try { x.abort(); } catch (e) {} }
+    const mySeq = ++uploadSeq;
+    const j = await uploadWithProgress(f);
+    if (mySeq !== uploadSeq) return;              // superseded by a newer file
+    if (!j || j.error === 'ABORTED') return;      // aborted: stay silent
+    uploadXHR = null;
+    if (j.error) {
+      if (j.error === 'TOOBIG') say(mf('m_err') + mf('m_toobig'), 'err');
+      else if (j.error === 'UPFAIL') say(mf('m_err') + mf('m_upfail'), 'err');
+      else say(mf('m_err') + j.error, 'err');
+      setPill(PILL.error, 'err');
+      stageText.textContent = stg('failed');
+      fill.style.width = '0%';
+      return;
+    }
+    // Upload finished: confirm it, restore the idle look, hand over to selection.
+    say(mf('m_uploaded', f.name));
+    setPill(PILL.ready, '');
+    stageText.textContent = stg('select');
+    fill.style.width = '5%';
+    jobId = j.job_id;
+    if (j.steps) renderSteps(j.steps);
+    updateGo();
     return;
   }
-  // Upload finished: confirm it, restore the idle look, hand over to selection.
-  say(mf('m_uploaded', f.name));
+  // Photos are processed on-device: nothing is uploaded at all.
+  say(mf('m_queued', f.name, kind, natW, natH));
   setPill(PILL.ready, '');
-  stageText.textContent = stg('select');
-  fill.style.width = '5%';
-  jobId = j.job_id;
-  if (j.steps) renderSteps(j.steps);
+  if (cvReady) {
+    stageText.textContent = stg('select');
+  } else {
+    stageText.textContent = mf('m_engine');
+    ensureCv().then((ok) => {
+      if (ok && file === f) stageText.textContent = stg('select');
+      updateGo();
+    });
+  }
   updateGo();
 }
 
@@ -759,7 +803,12 @@ function drawSel() {
 window.addEventListener('resize', drawSel);
 window.addEventListener('scroll', drawSel, { passive: true });
 
-function updateGo() { goBtn.disabled = !(jobId && sel && sel.w >= 8 && sel.h >= 8); }
+function updateGo() {
+  // Photos run on-device (no upload needed) once the WASM engine is ready;
+  // videos and the offline fallback still need a server job.
+  const ready = (kind === 'image' && cvReady) || jobId;
+  goBtn.disabled = !(ready && sel && sel.w >= 8 && sel.h >= 8);
+}
 
 maxBtn.onclick = () => {
   if (document.fullscreenElement) document.exitFullscreen();
@@ -822,14 +871,214 @@ function showPreview() {
   }, 350);
 }
 
+// ---- on-device photo removal (OpenCV.js / WASM) ----
+// Mirrors remover.py step for step: bright-pixel mask inside the box (+6px
+// pad, adaptive threshold, open, >=12px components, box-core fallback, 3x3
+// dilate) -> Navier-Stokes inpaint radius 2 -> Telea fringe pass -> grain
+// matched from the surrounding ring. Output matches the server path;
+// nothing is uploaded.
+async function removeImageLocal() {
+  const t0 = performance.now();
+  const tmp = [];
+  const track = (m) => { tmp.push(m); return m; };
+  try {
+    if (!mediaEl || !window.cv || !cvReady) throw new Error('no engine');
+    const src = track(cv.imread(mediaEl));           // RGBA, natural resolution
+    const W = src.cols, H = src.rows;
+    if (!W || !H) throw new Error('bad image');
+    // inpaint needs 3 channels: work on an RGB copy, convert back at the end
+    const rgb = track(new cv.Mat());
+    cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+    // clamp box (mirrors clamp_box)
+    let bx = Math.round(sel.x), by = Math.round(sel.y);
+    let bw = Math.round(sel.w), bh = Math.round(sel.h);
+    bx = Math.max(0, Math.min(bx, W - 1));
+    by = Math.max(0, Math.min(by, H - 1));
+    bw = Math.max(8, Math.min(bw, W - bx));
+    bh = Math.max(8, Math.min(bh, H - by));
+    fill.style.width = '10%';
+    // --- mask ---
+    const gray = track(new cv.Mat());
+    cv.cvtColor(rgb, gray, cv.COLOR_RGB2GRAY);
+    const pad = 6;
+    const x0 = Math.max(bx - pad, 0), y0 = Math.max(by - pad, 0);
+    const x1 = Math.min(bx + bw + pad, W), y1 = Math.min(by + bh + pad, H);
+    const rect = new cv.Rect(x0, y0, x1 - x0, y1 - y0);
+    const cropG = track(gray.roi(rect));
+    const meanM = track(new cv.Mat()), stdM = track(new cv.Mat());
+    cv.meanStdDev(cropG, meanM, stdM);
+    const mean = meanM.data64F[0], std = stdM.data64F[0];
+    const thresh = Math.max(150, mean + 1.5 * std);
+    const bin = track(new cv.Mat());
+    cv.threshold(cropG, bin, thresh, 255, cv.THRESH_BINARY);
+    const k3 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3)));
+    const opened = track(new cv.Mat());
+    cv.morphologyEx(bin, opened, cv.MORPH_OPEN, k3);
+    const lab = track(new cv.Mat()), stats = track(new cv.Mat()), cent = track(new cv.Mat());
+    const n = cv.connectedComponentsWithStats(opened, lab, stats, cent, 8, cv.CV_32S);
+    const keep = track(cv.Mat.zeros(opened.rows, opened.cols, cv.CV_8UC1));
+    const areas = [];
+    for (let i = 1; i < n; i++) areas[i] = stats.intAt(i, cv.CC_STAT_AREA);
+    const labD = lab.data32S, keepD = keep.data;
+    for (let p = 0; p < labD.length; p++) {
+      const li = labD[p];
+      if (li > 0 && areas[li] >= 12) keepD[p] = 255;
+    }
+    if (cv.countNonZero(keep) < 0.08 * bw * bh) {
+      keep.setTo(new cv.Scalar(0));
+      cv.rectangle(keep,
+        new cv.Point(bx - x0 + 1, by - y0 + 1),
+        new cv.Point(bx - x0 + bw - 1, by - y0 + bh - 1),
+        new cv.Scalar(255), -1);
+    }
+    const kdil = track(new cv.Mat());
+    cv.dilate(keep, kdil, k3);
+    const mask = track(cv.Mat.zeros(H, W, cv.CV_8UC1));
+    kdil.copyTo(mask.roi(rect));
+    const maskedPx = cv.countNonZero(mask);
+    fill.style.width = '35%';
+    // --- bounding box of the mask ---
+    const nz = track(new cv.Mat());
+    cv.findNonZero(mask, nz);
+    const br = cv.boundingRect(nz);
+    const bp = 10;
+    const bx0 = Math.max(br.x - bp, 0), by0 = Math.max(br.y - bp, 0);
+    const bx1 = Math.min(br.x + br.width + bp, W), by1 = Math.min(br.y + br.height + bp, H);
+    const brect = new cv.Rect(bx0, by0, bx1 - bx0, by1 - by0);
+    const crop = track(rgb.roi(brect));
+    const m = track(mask.roi(brect));
+    // --- fill ---
+    const filled = track(new cv.Mat());
+    cv.inpaint(crop, m, filled, 2, cv.INPAINT_NS);
+    fill.style.width = '60%';
+    const inner = track(new cv.Mat());
+    cv.erode(m, inner, k3);
+    if (cv.countNonZero(inner) > 0) {
+      const gf = track(new cv.Mat());
+      cv.cvtColor(filled, gf, cv.COLOR_RGB2GRAY);
+      const fringe = track(cv.Mat.zeros(m.rows, m.cols, cv.CV_8UC1));
+      const gd = gf.data, id = inner.data, fd = fringe.data;
+      let anyF = false;
+      for (let p = 0; p < id.length; p++) {
+        if (id[p] && gd[p] > 215) { fd[p] = 255; anyF = true; }
+      }
+      if (anyF) {
+        const tmp2 = track(new cv.Mat());
+        cv.inpaint(filled, fringe, tmp2, 2, cv.INPAINT_TELEA);
+        tmp2.copyTo(filled);
+      }
+    }
+    // --- grain match from the surrounding ring ---
+    const k9 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9)));
+    const k5 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5)));
+    const d9 = track(new cv.Mat()), d5 = track(new cv.Mat());
+    cv.dilate(m, d9, k9); cv.dilate(m, d5, k5);
+    const ring = track(new cv.Mat());
+    cv.subtract(d9, d5, ring);
+    if (cv.countNonZero(ring) >= 24) {
+      const chs = track(new cv.MatVector());
+      cv.split(filled, chs);
+      const m32 = track(new cv.Mat());
+      m.convertTo(m32, cv.CV_32F, 1 / 255);
+      const feather = track(new cv.Mat());
+      cv.GaussianBlur(m32, feather, new cv.Size(3, 3), 0);
+      for (let c = 0; c < 3; c++) {
+        const chMean = track(new cv.Mat()), chStd = track(new cv.Mat());
+        cv.meanStdDev(chs.get(c), chMean, chStd, ring);
+        const s = chStd.data64F[0];
+        if (s < 0.7) continue;
+        const ch32 = track(new cv.Mat());
+        chs.get(c).convertTo(ch32, cv.CV_32F);
+        const noise = track(new cv.Mat.zeros(ch32.rows, ch32.cols, cv.CV_32F));
+        cv.randn(noise, new cv.Scalar(0), new cv.Scalar(Math.min(s, 9)));
+        cv.multiply(noise, feather, noise);
+        cv.add(ch32, noise, ch32);
+        ch32.convertTo(chs.get(c), cv.CV_8U);
+      }
+      cv.merge(chs, filled); // split() copies: merge the grain back in
+    }
+    fill.style.width = '85%';
+    filled.copyTo(rgb.roi(brect));
+    cv.cvtColor(rgb, src, cv.COLOR_RGB2RGBA);
+    // --- show + download ---
+    cleanWrap.innerHTML = '';
+    const outC = document.createElement('canvas');
+    outC.width = W; outC.height = H;
+    outC.style.cssText = 'max-width:100%;max-height:320px;object-fit:contain;display:block;width:100%';
+    cv.imshow(outC, src);
+    cleanWrap.appendChild(outC);
+    const dt = ((performance.now() - t0) / 1000).toFixed(1);
+    meta.innerHTML = `<span class="pill">◧ ${MSG.m_region} (${bx}, ${by}, ${bw}×${bh})</span>
+      <span class="pill">◍ ${MSG.m_cleaned} <b>${maskedPx}</b> px</span>
+      <span class="pill">⏱ ${dt}s</span>`;
+    fill.style.width = '100%';
+    stageText.textContent = stg('done');
+    setPill(PILL.done, 'ok');
+    stopClock();
+    dlBox.style.display = 'block';
+    outC.toBlob((blob) => {
+      if (!blob) return;
+      dlLink.href = URL.createObjectURL(blob);
+      const base = (file && file.name ? file.name : 'image').replace(/\.[^.]+$/, '');
+      dlLink.download = base + '_cleaned.png';
+    }, 'image/png');
+    maxBtn.classList.add('on');
+    say(mf('m_done'), 'ok');
+    goBtn.disabled = false; clearBtn.disabled = false;
+  } catch (err) {
+    // On-device failed midway: fall back to the server pipeline.
+    const ok = await ensureServerJob();
+    if (!ok) { stopClock(); goBtn.disabled = false; clearBtn.disabled = false; return; }
+    await startServerProcess();
+  } finally {
+    for (const mm of tmp) { try { mm.delete(); } catch (e) {} }
+  }
+}
+
 goBtn.onclick = async () => {
-  if (!jobId || !sel) return;
+  if (!sel) return;
+  if (kind !== 'image' && !jobId) return;
   if (kind === 'video' && mediaEl && !mediaEl.paused) mediaEl.pause();
   goBtn.disabled = true; clearBtn.disabled = true;
   feed.innerHTML=''; shownLogs=0; meta.innerHTML=''; dlBox.style.display='none';
+  try { if (dlLink.href && dlLink.href.indexOf('blob:') === 0) URL.revokeObjectURL(dlLink.href); } catch (e) {}
+  dlLink.removeAttribute('download');
   startClock(); setPill(PILL.working, 'work');
   say(mf('m_removing', Math.round(sel.x), Math.round(sel.y), Math.round(sel.w), Math.round(sel.h)));
   stageText.textContent = stg('working');
+  if (kind === 'image' && cvReady) { await removeImageLocal(); return; }
+  if (!jobId) {
+    // On-device engine unavailable (offline or unsupported browser):
+    // fall back to the server pipeline for this file.
+    const ok = await ensureServerJob();
+    if (!ok) { stopClock(); goBtn.disabled = false; clearBtn.disabled = false; return; }
+  }
+  await startServerProcess();
+};
+
+// Uploads the current file and parks the returned job id. Reports errors
+// itself; returns true only when a job is ready. Used by the video flow
+// (at selection time) and the image fallback (at Remove time).
+async function ensureServerJob() {
+  const j = await uploadWithProgress(file);
+  uploadXHR = null;
+  if (!j || j.error === 'ABORTED') return false;
+  if (j.error) {
+    if (j.error === 'TOOBIG') say(mf('m_err') + mf('m_toobig'), 'err');
+    else if (j.error === 'UPFAIL') say(mf('m_err') + mf('m_upfail'), 'err');
+    else say(mf('m_err') + j.error, 'err');
+    setPill(PILL.error, 'err');
+    stageText.textContent = stg('failed');
+    fill.style.width = '0%';
+    return false;
+  }
+  say(mf('m_uploaded', file.name));
+  jobId = j.job_id;
+  if (j.steps) renderSteps(j.steps);
+  return true;
+}
+
+async function startServerProcess() {
   const r = await fetch('/api/process/' + jobId, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ box: [sel.x, sel.y, sel.w, sel.h] })
@@ -896,6 +1145,7 @@ async function poll() {
       setPill(PILL.done, 'ok');
       dlBox.style.display = 'block';
       dlLink.href = '/api/download/' + jobId;
+      dlLink.removeAttribute('download'); // may hold a stale on-device filename
       const viewUrl = '/api/download/' + jobId + '?view=1';
       cleanWrap.innerHTML = kind === 'image'
         ? `<img src="${viewUrl}" alt="cleaned"/>`
