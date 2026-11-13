@@ -863,6 +863,16 @@ async function poll() {
     return;
   }
   if (!j) return;
+  if (j.error) {
+    // The job is gone — e.g. the host restarted under memory pressure and
+    // the in-memory job table was wiped. Stop polling and say so plainly
+    // instead of rendering "undefined".
+    clearInterval(timer); stopClock();
+    stageText.textContent = stg('failed'); setPill(PILL.error, 'err');
+    say(mf('m_err') + mf('m_lost'), 'err');
+    goBtn.disabled = false; clearBtn.disabled = false;
+    return;
+  }
   fill.style.width = (j.progress||0) + '%';
   if (j.steps) renderSteps(j.steps);
   stageText.textContent = stg(j.stage) + ' · ' + (j.progress||0) + '%';

@@ -341,11 +341,16 @@ def process_video(job, src, dst, box):
     # Single-pass: pipe cleaned frames straight into x264 (no temp file).
     # superfast preset: ~2x the encode speed of veryfast at the same CRF 17
     # (visually identical), tuned for small shared deploy CPUs.
+    # RAM-bounded encoder: 2 threads + short lookahead. x264 otherwise sizes
+    # its frame buffers from the host CPU count and lookahead (25+ frames),
+    # which alone can exceed a 512 MB instance on HD/4K clips. Visual quality
+    # at CRF 17 is unchanged; only the file size grows by a few percent.
     cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "warning",
            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{w}x{h}",
            "-r", f"{fps:.3f}", "-i", "pipe:0",
            "-i", src,
            "-c:v", "libx264", "-preset", "superfast", "-crf", "17",
+           "-threads", "2", "-x264-params", "rc-lookahead=10",
            "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k",
            "-map", "0:v:0", "-map", "1:a?", "-shortest", dst]
