@@ -960,6 +960,7 @@ function cvFillWithMask(rgb, mask, bbox, tmp) {
     cv.merge(chs, filled); // split() copies: merge the grain back in
   }
   filled.copyTo(rgb.roi(brect));
+  return brect;
 }
 
 // ---- on-device photo removal (OpenCV.js / WASM) ----
@@ -1271,10 +1272,16 @@ async function removeVideoLocal() {
       }
       const decCfg = { codec: opened.codec, codedWidth: opened.tw || W, codedHeight: opened.th || H };
       if (desc) decCfg.description = desc;
-      let ok = false;
-      try { ok = (await VideoDecoder.isConfigSupported(decCfg)).supported; } catch (e) { ok = false; }
-      if (!ok) throw new Error('decoder unsupported ' + opened.codec);
-      demux = { cfg: decCfg, trackId: opened.trackId, timescale: opened.timescale, total: opened.n };
+      // Prefer hardware decode (much faster); fall back to software decode
+      // rather than the slow seek path.
+      let picked = null;
+      for (const dc of [{ ...decCfg, hardwareAcceleration: 'prefer-hardware' }, decCfg]) {
+        try {
+          if ((await VideoDecoder.isConfigSupported(dc)).supported) { picked = dc; break; }
+        } catch (e) {}
+      }
+      if (!picked) throw new Error('decoder unsupported ' + opened.codec);
+      demux = { cfg: picked, trackId: opened.trackId, timescale: opened.timescale, total: opened.n };
     } catch (e) {
       if (mp4f) { try { mp4f.stop(); } catch (_) {} mp4f = null; }
       if (e && e.nocodec) throw e;
@@ -1284,7 +1291,7 @@ async function removeVideoLocal() {
     // --- offscreen sampler (independent of the visible preview) ---
     pv = document.createElement('video');
     pv.muted = true; pv.playsInline = true; pv.preload = 'auto';
-    vUrl = URL.createObjectURL(new Blob([buf], { type: file.type || 'video/mp4' }));
+    vUrl = URL.createObjectURL(file);
     pv.src = vUrl;
     await new Promise((res, rej) => {
       const to = setTimeout(() => rej(new Error('bad meta')), 15000);
@@ -1351,11 +1358,27 @@ async function removeVideoLocal() {
     // --- muxer + H.264 encoder ---
     const vfps = Math.max(1, Math.round(fps));
     const bitrate = Math.min(40000000, Math.max(2000000, Math.round(W * H * fps * 0.15)));
-    const vencCfg = { codec: H > 1080 ? 'avc1.640033' : 'avc1.640028', width: W, height: H, bitrate, framerate: vfps };
-    try {
-      const s = await VideoEncoder.isConfigSupported(vencCfg);
-      if (!s.supported) throw new Error('venc unsupported');
-    } catch (e) { throw { nocodec: true }; }
+    // H.264 level from actual macroblock throughput: a fixed level wrongly
+    // rejects 1080p60/4K on strict encoders (the whole job would fail).
+    // Prefer hardware (fastest), then software, then Baseline as last resort.
+    const mbs = Math.ceil(W / 16) * Math.ceil(H / 16) * vfps;
+    const avcHi = mbs > 983040 ? 'avc1.640034'
+      : mbs > 589824 ? 'avc1.640033'
+      : mbs > 522240 ? 'avc1.640032'
+      : mbs > 245760 ? 'avc1.64002a' : 'avc1.640028';
+    let vencCfg = null;
+    for (const t of [
+      { codec: avcHi, hardwareAcceleration: 'prefer-hardware' },
+      { codec: avcHi, hardwareAcceleration: 'allow' },
+      { codec: 'avc1.420028', hardwareAcceleration: 'allow' },
+    ]) {
+      const cfg = { codec: t.codec, width: W, height: H, bitrate, framerate: vfps,
+        hardwareAcceleration: t.hardwareAcceleration, latencyMode: 'realtime' };
+      try {
+        if ((await VideoEncoder.isConfigSupported(cfg)).supported) { vencCfg = cfg; break; }
+      } catch (e) {}
+    }
+    if (!vencCfg) throw { nocodec: true };
     const target = new libs.ArrayBufferTarget();
     const muxer = new libs.Muxer({
       target,
@@ -1387,10 +1410,12 @@ async function removeVideoLocal() {
         const rgba = ftmp.push(cv.imread(work)) && ftmp[ftmp.length - 1];
         const rgb = ftmp.push(new cv.Mat()) && ftmp[ftmp.length - 1];
         cv.cvtColor(rgba, rgb, cv.COLOR_RGBA2RGB);
-        cvFillWithMask(rgb, union, bbox, ftmp);
-        const out = ftmp.push(new cv.Mat()) && ftmp[ftmp.length - 1];
-        cv.cvtColor(rgb, out, cv.COLOR_RGB2RGBA);
-        cv.imshow(work, out);
+        const brect = cvFillWithMask(rgb, union, bbox, ftmp);
+        // Write back only the repaired patch: a full-frame imshow re-uploads
+        // W*H pixels every frame; putImageData touches just the small box.
+        const patch = ftmp.push(new cv.Mat());
+        cv.cvtColor(rgb.roi(brect), patch, cv.COLOR_RGB2RGBA);
+        wctx.putImageData(new ImageData(new Uint8ClampedArray(patch.data), patch.cols, patch.rows), brect.x, brect.y);
         const vf = new VideoFrame(work, { timestamp: ts, duration: frameDur });
         venc.encode(vf, { keyFrame: doneCount % Math.max(1, Math.round(fps * 2)) === 0 });
         vf.close();
@@ -1567,6 +1592,7 @@ async function removeVideoLocal() {
     say(mf('m_done'), 'ok');
     goBtn.disabled = false; clearBtn.disabled = false;
   } catch (err) {
+    try { console.warn('remove failed:', err); } catch (e) {}
     if (err && err.nocodec) {
       say(mf('m_err') + mf('m_nocodec'), 'err');
     } else {
