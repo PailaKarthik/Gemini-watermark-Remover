@@ -1,0 +1,9 @@
+# Render blueprint: push this repo to GitHub, then "New +" -> "Blueprint"
+# and Render picks this up automatically.
+services:
+  - type: web
+    name: gemini-watermark-remover
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy — Gemini Watermark Remover{% endblock %}
+{% block desc %}Privacy policy for Gemini Watermark Remover: your media never leaves your computer, no accounts, no analytics, no third-party tracking of your files.{% endblock %}
+{% block head %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
+{"@type":"ListItem","position":2,"name":"Privacy policy","item":"{{ site_url }}/privacy"}]}
+</script>
+{% endblock %}
+{% block content %}
+<div class="page">
+  <p class="crumb"><a href="/">Home</a> / Privacy policy</p>
+  <span class="tag">SHORT &amp; HONEST</span>
+  <h1>Privacy <span>policy</span></h1>
+  <p class="lead">The short version: your media never leaves your computer. The details, briefly:</p>
+
+  <h2>1. Your files</h2>
+  <p>Uploaded photos and videos are processed by the engine running on your own machine. They are stored in local <span class="kbd">uploads</span> and <span class="kbd">outputs</span> folders on your computer, which you can inspect and empty at any time. No file is transmitted to us or to any third party.</p>
+
+  <h2>2. What we collect</h2>
+  <p><b>Nothing.</b> There are no accounts, no analytics on your media, no telemetry, and no advertising cookies. The tool itself is served locally; the only external requests your browser makes are for web fonts (Google Fonts) when online — your images and videos are never part of that traffic.</p>
+
+  <h3>Job data in memory</h3>
+  <p>While the app runs it keeps a small in-memory state for each job (status, logs, timing) so the interface can show progress. It stays in RAM on your machine and disappears when the app closes.</p>
+
+  <h2>3. Cookies</h2>
+  <p>The application sets no tracking cookies. None are needed — there's no session, login, or ad system.</p>
+
+  <h2>4. Children</h2>
+  <p>The tool is a general-purpose utility and is not directed at children. Use it (as with any media tool) under adult supervision where appropriate.</p>
+
+  <h2>5. Changes</h2>
+  <p>If this policy ever changes, the change will appear on this page. Given the local-first design, that's unlikely to be about data collection — there isn't any.</p>
+
+  <p class="bye">Last updated: November 2026.</p>
+</div>
+{% endblock %}

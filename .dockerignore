@@ -1,0 +1,10 @@
+uploads/
+outputs/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+README.md
+start.bat
+*.md
+!README.md

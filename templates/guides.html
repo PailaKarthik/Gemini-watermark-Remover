@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Guides — Removing Gemini AI Watermarks from Photos &amp; Videos{% endblock %}
+{% block desc %}Step-by-step guides for removing the Gemini AI watermark: from photos, from videos, and an explainer on what the Gemini watermark and SynthID actually are.{% endblock %}
+{% block head %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
+{"@type":"ListItem","position":2,"name":"Guides","item":"{{ site_url }}/guides"}]}
+</script>
+{% endblock %}
+{% block content %}
+<div class="page wide">
+  <p class="crumb"><a href="/">Home</a> / Guides</p>
+  <span class="tag">STEP-BY-STEP RESOURCES</span>
+  <h1>Watermark removal <span>guides</span></h1>
+  <p class="lead">Short, practical walkthroughs — no fluff. Each guide uses the same free tool and takes about a minute per file.</p>
+
+  <div class="grid2">
+    <div class="feat">
+      <span class="ic">🖼</span><h3>Remove the Gemini watermark from photos</h3>
+      <p>Pixel-tight selection on still images, original resolution kept. Covers PNG, JPG and WebP, corner badges, and the preview workflow.</p>
+      <p><a href="/guides/remove-gemini-watermark-from-photos">Read the photo guide →</a></p>
+    </div>
+    <div class="feat">
+      <span class="ic">🎬</span><h3>Remove the Gemini watermark from videos</h3>
+      <p>Scrub to a sharp frame, box the badge once, and the mask applies to the whole clip. What to know about FPS, audio and encode quality.</p>
+      <p><a href="/guides/remove-gemini-watermark-from-videos">Read the video guide →</a></p>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="feat">
+      <span class="ic">✨</span><h3>What is the Gemini watermark?</h3>
+      <p>The visible corner badge, where it comes from, and how it differs from Google's invisible SynthID — plus what a remover can and cannot erase.</p>
+      <p><a href="/guides/what-is-the-gemini-watermark">Read the explainer →</a></p>
+    </div>
+    <div class="feat">
+      <span class="ic">⚡</span><h3>Quick start</h3>
+      <p>Just want it gone? Open the tool, drop your file, drag a box over the badge, press Remove. That's the whole workflow.</p>
+      <p><a href="/#tool">Open the remover →</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

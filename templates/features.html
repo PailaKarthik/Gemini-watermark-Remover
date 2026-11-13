@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Features — Gemini Watermark Remover (Free, Local, Original Quality){% endblock %}
+{% block desc %}Every feature of the free Gemini watermark remover: pixel-exact manual selection, original-quality output, fast single-pass video encoding, grain matching, and 100% local privacy.{% endblock %}
+{% block head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {"@type": "SoftwareApplication",
+     "name": "Gemini Watermark Remover",
+     "applicationCategory": "MultimediaApplication",
+     "operatingSystem": "Any (web browser)",
+     "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+     "description": "Free tool to remove the Gemini AI watermark from photos and videos with pixel-exact manual selection and original-quality output."},
+    {"@type": "BreadcrumbList", "itemListElement": [
+      {"@type": "ListItem", "position": 1, "name": "Home", "item": "{{ site_url }}/"},
+      {"@type": "ListItem", "position": 2, "name": "Features", "item": "{{ site_url }}/features"}]}
+  ]
+}
+</script>
+{% endblock %}
+{% block content %}
+<div class="page wide">
+  <p class="crumb"><a href="/">Home</a> / Features</p>
+  <span class="tag">EVERYTHING THIS TOOL DOES</span>
+  <h1>Features that make this <span>watermark remover</span> different</h1>
+  <p class="lead">Most removers blur a rectangle and hope you won't notice. This one was built around three rules: edit <strong>only</strong> what you select, keep the output at <strong>original quality</strong>, and never let a single byte leave your machine.</p>
+
+  <div class="grid2">
+    <div class="feat"><span class="ic">◎</span><h3>Pixel-exact manual selection</h3><p>You drag the box, so you decide exactly which pixels get touched. A live preview shows the cropped region before removal — no surprises.</p></div>
+    <div class="feat"><span class="ic">⬚</span><h3>Region-only editing</h3><p>Everything outside your selection is byte-identical to the original. No global sharpening, no full-frame re-compression artifacts, no hidden "enhancement".</p></div>
+    <div class="feat"><span class="ic">✦</span><h3>Texture-aware inpainting</h3><p>A tight pixel mask is built inside your box, then filled with Navier–Stokes inpainting plus a Telea fringe pass — the fill follows the surrounding texture.</p></div>
+    <div class="feat"><span class="ic">◍</span><h3>Grain matching</h3><p>The cleaned patch is matched to the local noise level of the surrounding image, so the removed area doesn't look like a suspiciously smooth rectangle.</p></div>
+    <div class="feat"><span class="ic">▣</span><h3>Original-quality output</h3><p>Photos save at their full original resolution. Video is encoded once with x264 at CRF 17 (visually lossless), same resolution and FPS, original audio track kept.</p></div>
+    <div class="feat"><span class="ic">⚡</span><h3>Fast single-pass video pipeline</h3><p>Cleaned frames stream straight into the encoder — no intermediate files, no double transcode. A one-minute 1080p clip typically finishes in well under a minute.</p></div>
+    <div class="feat"><span class="ic">⌂</span><h3>100% local &amp; private</h3><p>The engine runs on your computer. Your media is never uploaded to a cloud service, never stored on someone else's server, and never used for training.</p></div>
+    <div class="feat"><span class="ic">✓</span><h3>Free &amp; unlimited</h3><p>No accounts, no subscriptions, no export limits, no watermark-on-your-output. Open the page and use it as many times as you want.</p></div>
+  </div>
+
+  <h2>Photos vs. videos, side by side</h2>
+  <table>
+    <thead><tr><th></th><th>Photos</th><th>Videos</th></tr></thead>
+    <tbody>
+      <tr><td><b>Selection</b></td><td>Drag on the image</td><td>Drag on any frame; box applies to all frames</td></tr>
+      <tr><td><b>Mask</b></td><td>Tight mask inside your box</td><td>Union of tight masks from 5 sampled frames (no flicker)</td></tr>
+      <tr><td><b>Output quality</b></td><td>Original resolution, quality-100 encode</td><td>x264 CRF 17, same resolution + FPS</td></tr>
+      <tr><td><b>Audio</b></td><td>—</td><td>Original audio copied through</td></tr>
+      <tr><td><b>Preview</b></td><td>Pixel-exact crop preview</td><td>Pixel-exact crop preview from mid-video frame</td></tr>
+      <tr><td><b>Speed</b></td><td>Seconds</td><td>Single-pass streaming encode</td></tr>
+    </tbody>
+  </table>
+
+  <h2>What it doesn't do (on purpose)</h2>
+  <ul>
+    <li><b>No automatic detection</b> — you draw the box, so there's no mis-detected "watermark" eating your content.</li>
+    <li><b>No hidden metadata edits</b> — the tool removes the visible badge; invisible SynthID signatures are not touched.</li>
+    <li><b>No cloud anything</b> — no uploads, no accounts, no telemetry.</li>
+  </ul>
+
+  <div class="btnrow">
+    <a class="btn primary" href="/#tool">Try it free →</a>
+    <a class="btn ghost" href="/how-it-works">See the 3-step guide</a>
+  </div>
+</div>
+{% endblock %}

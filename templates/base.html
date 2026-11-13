@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>{% block title %}Gemini Watermark Remover — Free AI Watermark Remover for Photos &amp; Videos{% endblock %}</title>
+<meta name="description" content="{% block desc %}Free online Gemini watermark remover. Remove the Gemini AI watermark from photos and videos in seconds — 100% in your browser, original quality kept, nothing uploaded to any cloud.{% endblock %}"/>
+<meta name="keywords" content="gemini watermark remover, remove gemini watermark, gemini ai watermark, ai watermark remover, remove watermark from video, remove watermark from photo, free watermark remover"/>
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1"/>
+<meta name="theme-color" content="#0a0a12"/>
+<link rel="canonical" href="{{ site_url }}{{ request.path }}"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Gemini Watermark Remover"/>
+<meta property="og:title" content="{% block ogtitle %}{{ self.title() }}{% endblock %}"/>
+<meta property="og:description" content="{% block ogdesc %}{{ self.desc() }}{% endblock %}"/>
+<meta property="og:url" content="{{ site_url }}{{ request.path }}"/>
+<meta property="og:locale" content="en_US"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="{{ self.ogtitle() }}"/>
+<meta name="twitter:description" content="{{ self.ogdesc() }}"/>
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}"/>
+{% block head %}{% endblock %}
+</head>
+<body>
+<header class="site-head">
+  <nav aria-label="Main navigation">
+    <a class="logo" href="{{ url_for('index') }}">✦ <b>Gemini&nbsp;Watermark&nbsp;Remover</b></a>
+    <ul>
+      <li><a href="{{ url_for('how_it_works') }}" {% if request.path == '/how-it-works' %}aria-current="page"{% endif %}>How it works</a></li>
+      <li><a href="{{ url_for('features') }}" {% if request.path == '/features' %}aria-current="page"{% endif %}>Features</a></li>
+      <li><a href="{{ url_for('guides') }}" {% if request.path.startswith('/guides') %}aria-current="page"{% endif %}>Guides</a></li>
+      <li><a href="{{ url_for('faq') }}" {% if request.path == '/faq' %}aria-current="page"{% endif %}>FAQ</a></li>
+      <li><a href="{{ url_for('about') }}" {% if request.path == '/about' %}aria-current="page"{% endif %}>About</a></li>
+    </ul>
+    <a class="cta" href="{{ url_for('index') }}#tool">Open the remover →</a>
+  </nav>
+</header>
+
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="site-foot">
+  <div class="in">
+    <div>
+      <h4>Gemini Watermark Remover</h4>
+      <p class="about-txt">A free, 100%-local tool that removes the Gemini AI watermark from photos and videos. You choose the exact region — only those pixels are edited, everything else stays original.</p>
+    </div>
+    <div>
+      <h4>Tool</h4>
+      <ul>
+        <li><a href="{{ url_for('index') }}#tool">Watermark remover</a></li>
+        <li><a href="{{ url_for('how_it_works') }}">How it works</a></li>
+        <li><a href="{{ url_for('features') }}">Features</a></li>
+        <li><a href="{{ url_for('faq') }}">FAQ</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Guides</h4>
+      <ul>
+        <li><a href="{{ url_for('guide_photo') }}">Remove watermark from photos</a></li>
+        <li><a href="{{ url_for('guide_video') }}">Remove watermark from videos</a></li>
+        <li><a href="{{ url_for('guide_what') }}">What is the Gemini watermark?</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Company</h4>
+      <ul>
+        <li><a href="{{ url_for('about') }}">About</a></li>
+        <li><a href="{{ url_for('privacy') }}">Privacy policy</a></li>
+        <li><a href="{{ url_for('terms') }}">Terms of use</a></li>
+        <li><a href="{{ url_for('sitemap_xml') }}">Sitemap</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="legal">© {{ year }} Gemini Watermark Remover · Runs 100% locally · Use only on content you own or have rights to.</div>
+</footer>
+</body>
+</html>

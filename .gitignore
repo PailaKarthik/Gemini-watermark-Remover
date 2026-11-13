@@ -1,0 +1,22 @@
+# user data (never commit other people's media)
+uploads/
+outputs/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# local testing artifacts
+*.log
+*.tmp
