@@ -1161,10 +1161,11 @@ function seekTo(v, t) {
 
 // Union mask from a few spread frames (covers the badge under changing
 // backgrounds). v: sampling video element already pointed at the file.
-async function sampleUnionMask(v, work, wctx, W, H, fracs, box, tmp) {
+async function sampleUnionMask(v, work, wctx, W, H, fracs, box, tmp, onstep) {
   const dur = v.duration;
   if (!(dur > 0)) throw new Error('bad duration');
   let union = null;
+  let i = 0;
   for (const fr of fracs) {
     await seekTo(v, Math.min(Math.max(fr * dur, 0), Math.max(dur - 0.05, 0)));
     wctx.drawImage(v, 0, 0, W, H);
@@ -1175,6 +1176,8 @@ async function sampleUnionMask(v, work, wctx, W, H, fracs, box, tmp) {
     const r = cvMaskFromGray(gray, box, W, H, tmp);
     if (!union) union = r.mask;
     else cv.bitwise_or(union, r.mask, union);
+    i++;
+    try { if (onstep) onstep(i, fracs.length); } catch (e) {}
   }
   if (!union) throw new Error('no samples');
   const maskedPx = cv.countNonZero(union);
@@ -1244,8 +1247,12 @@ async function removeVideoLocal() {
     if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined' ||
         typeof VideoFrame === 'undefined' || typeof AudioData === 'undefined') throw { nocodec: true };
     const libs = await loadMp4Libs();
+    fill.style.width = '1%';
+    stageText.textContent = stg('working') + ' · 1%';
     const buf = await file.arrayBuffer();
     if (!buf || !buf.byteLength) throw new Error('empty file');
+    fill.style.width = '2%';
+    stageText.textContent = stg('working') + ' · 2%';
     const W = natW, H = natH;
     if (!W || !H) throw new Error('bad size');
 
@@ -1286,22 +1293,32 @@ async function removeVideoLocal() {
     });
     if (needProbe) {
       // Non-ISO container (webm/mkv/avi): measure fps with a brief playback.
+      stageText.textContent = stg('working') + ' · 4%';
       fps = await probePlaybackFps(pv);
       seconds = pv.duration;
       if (!(seconds > 0) || !(fps > 0)) throw new Error('bad meta');
       n = Math.max(1, Math.round(seconds * fps));
     }
+    fill.style.width = '5%';
+    stageText.textContent = stg('working') + ' · 5%';
     const work = document.createElement('canvas');
     work.width = W; work.height = H;
     const wctx = work.getContext('2d', { willReadFrequently: true });
 
     // --- union mask from 5 spread frames ---
     stageText.textContent = stg('working');
-    const u = await sampleUnionMask(pv, work, wctx, W, H, [0.02, 0.27, 0.5, 0.73, 0.98], sel, tmp);
+    const u = await sampleUnionMask(pv, work, wctx, W, H, [0.02, 0.27, 0.5, 0.73, 0.98], sel, tmp,
+      (i, total) => {
+        const pct = 5 + Math.round(3 * i / total);
+        fill.style.width = pct + '%';
+        stageText.textContent = stg('working') + ' · ' + pct + '%';
+      });
     const union = u.union, bbox = u.bbox, maskedPx = u.maskedPx;
     fill.style.width = '8%';
 
     // --- audio: decode + re-encode to AAC (opus fallback), then mux ---
+    fill.style.width = '9%';
+    stageText.textContent = stg('working') + ' · 9%';
     let audioCfg = null;
     const audioQueue = [];
     try {
@@ -1360,7 +1377,7 @@ async function removeVideoLocal() {
     const frameDur = Math.round(1e6 / fps);
     let doneCount = 0;
     const showProg = () => {
-      const pct = Math.min(99, Math.round(100 * doneCount / n));
+      const pct = Math.max(10, Math.min(99, Math.round(100 * doneCount / n)));
       fill.style.width = pct + '%';
       stageText.textContent = stg('working') + ' · ' + pct + '%';
     };
@@ -1403,7 +1420,7 @@ async function removeVideoLocal() {
       }
     };
     let orientChecked = false, fellBack = false;
-    if (demux) {
+    const runDemux = async () => {
       // Fast path: exact demux + hardware decode, timestamps preserved.
       const vq = [];
       let demuxErr = null, fed = 0, delivered = 0;
@@ -1434,10 +1451,12 @@ async function removeVideoLocal() {
       mp4f.onError = (e) => { demuxErr = new Error('demux ' + e); };
       mp4f.setExtractionOptions(demux.trackId, null, { nbSamples: demux.total });
       mp4f.start();
+      let lastActive = performance.now();
       while (true) {
         if (demuxErr) throw demuxErr;
         const fr = vq.shift();
         if (fr) {
+          lastActive = performance.now();
           if (!orientChecked) {
             orientChecked = true;
             const codedLand = fr.codedWidth > fr.codedHeight;
@@ -1465,6 +1484,9 @@ async function removeVideoLocal() {
           continue;
         }
         if (delivered >= demux.total) break;
+        // Stall guard: a wedged demuxer/decoder must never hang the job —
+        // the caller falls back to seek-decoding instead.
+        if (performance.now() - lastActive > 30000) throw new Error('demux stall');
         await sleep(5);
       }
       if (fellBack) { dec = null; }
@@ -1481,6 +1503,20 @@ async function removeVideoLocal() {
       }
       try { dec.close(); } catch (e) {}
       dec = null;
+      }
+    };
+    if (demux) {
+      try {
+        await runDemux();
+      } catch (e) {
+        if (e && e.nocodec) throw e;
+        // Fast path failed or stalled: clean up and seek-decode instead.
+        // Same pixels, same quality — just slower per frame.
+        try { if (dec) dec.close(); } catch (_) {}
+        dec = null;
+        try { if (mp4f) mp4f.stop(); } catch (_) {}
+        doneCount = 0;
+        await seekingLoop();
       }
     } else {
       await seekingLoop();
