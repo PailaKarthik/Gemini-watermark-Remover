@@ -947,7 +947,13 @@ async function removeImageLocal() {
   const track = (m) => { tmp.push(m); return m; };
   try {
     if (!mediaEl || !window.cv || !cvReady) throw new Error('no engine');
-    const src = track(cv.imread(mediaEl));           // RGBA, natural resolution
+    // Draw to a natural-resolution canvas first: cv.imread(img) reads the
+    // *rendered* size, but the selection box is in natural coordinates.
+    const nat = document.createElement('canvas');
+    nat.width = natW; nat.height = natH;
+    nat.getContext('2d').drawImage(mediaEl, 0, 0, natW, natH);
+    const src = track(cv.imread(nat));           // RGBA, natural resolution
+    nat.width = 0; nat.height = 0;
     const W = src.cols, H = src.rows;
     if (!W || !H) throw new Error('bad image');
     // inpaint needs 3 channels: work on an RGB copy, convert back at the end
