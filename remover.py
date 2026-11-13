@@ -75,6 +75,39 @@ def _grain_crop(orig: np.ndarray, filled: np.ndarray, m: np.ndarray) -> np.ndarr
     return np.clip(out, 0, 255).astype(np.uint8)
 
 
+def mask_bbox(mask: np.ndarray, pad: int = 10):
+    """Tight crop rect around all masked pixels. Computed ONCE per video
+    (the union mask never changes) instead of re-scanning every frame."""
+    ys, xs = np.where(mask > 0)
+    if len(xs) == 0:
+        return None
+    h, w = mask.shape[:2]
+    x0, y0 = max(int(xs.min()) - pad, 0), max(int(ys.min()) - pad, 0)
+    x1, y1 = min(int(xs.max()) + pad + 1, w), min(int(ys.max()) + pad + 1, h)
+    return (x0, y0, x1, y1)
+
+
+def clean_with_bbox(bgr: np.ndarray, mask: np.ndarray, bbox) -> np.ndarray:
+    """Same fill as clean_with_mask but reuses a precomputed bbox and edits
+    the frame buffer in place — no per-frame full-image scan or copy."""
+    x0, y0, x1, y1 = bbox
+    crop = bgr[y0:y1, x0:x1]
+    m = mask[y0:y1, x0:x1]
+    filled = cv2.inpaint(crop, m, 2, cv2.INPAINT_NS)
+    # second pass on any still-bright fringe inside the mask
+    inner = cv2.erode(m, np.ones((3, 3), np.uint8), iterations=1)
+    if int((inner > 0).sum()) > 0:
+        g = cv2.cvtColor(filled, cv2.COLOR_BGR2GRAY)
+        fringe = np.zeros_like(m)
+        sel = inner > 0
+        fringe[sel] = np.where(g[sel] > 215, 255, 0).astype(np.uint8)
+        if int((fringe > 0).sum()) > 0:
+            filled = cv2.inpaint(filled, fringe, 2, cv2.INPAINT_TELEA)
+    filled = _grain_crop(crop, filled, m)
+    bgr[y0:y1, x0:x1] = filled
+    return bgr
+
+
 def clean_with_mask(bgr: np.ndarray, mask: np.ndarray) -> np.ndarray:
     """Fill masked pixels. Only the masked bounding region is processed;
     all other pixels are returned untouched."""

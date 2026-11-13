@@ -6,4 +6,4 @@ services:
     runtime: docker
     plan: free
     autoDeploy: true
-    healthCheckPath: /
+    healthCheckPath: /en/

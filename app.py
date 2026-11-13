@@ -20,7 +20,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory, rende
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from remover import clamp_box, mask_from_box, clean_with_mask, remove_region
+from remover import clamp_box, mask_from_box, clean_with_bbox, mask_bbox, remove_region
 from translations import LANGS, META, merged
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -276,16 +276,19 @@ def process_video(job, src, dst, box):
             union = cv2.bitwise_or(union, mask_from_box(fr, box))
     mask = cv2.dilate(union, np.ones((3, 3), np.uint8), iterations=1)
     job["region"]["masked_px"] = int((mask > 0).sum())
-    log(job, f"Locked {int((mask > 0).sum())} badge pixels. Cleaning + encoding...")
+    job["bbox"] = mask_bbox(mask)  # fixed for the whole clip: no per-frame scan
+    log(job, "Locked %d badge pixels. Cleaning + encoding..." % int((mask > 0).sum()))
     job["progress"] = 15
     _set_step(job, "remove", "active")
 
     # Single-pass: pipe cleaned frames straight into x264 (no temp file).
+    # superfast preset: ~2x the encode speed of veryfast at the same CRF 17
+    # (visually identical), tuned for small shared deploy CPUs.
     cmd = [ffmpeg, "-y",
            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{w}x{h}",
            "-r", f"{fps:.3f}", "-i", "pipe:0",
            "-i", src,
-           "-c:v", "libx264", "-preset", "veryfast", "-crf", "17",
+           "-c:v", "libx264", "-preset", "superfast", "-crf", "17",
            "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k",
            "-map", "0:v:0", "-map", "1:a?", "-shortest", dst]
@@ -293,12 +296,15 @@ def process_video(job, src, dst, box):
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
     done = 0
+    bbox = job.get("bbox")
     try:
         while True:
             ok, fr = cap.read()
             if not ok:
                 break
-            proc.stdin.write(clean_with_mask(fr, mask).tobytes())
+            if bbox:
+                clean_with_bbox(fr, mask, bbox)  # in place, no copy
+            proc.stdin.write(fr.tobytes())
             done += 1
             if total > 0:
                 job["progress"] = min(15 + int(75 * done / total), 92)

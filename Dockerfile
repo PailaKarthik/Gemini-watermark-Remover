@@ -17,4 +17,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 7860
-CMD ["python", "app.py"]
+# Production server: 1 worker (video jobs run in bg threads) x 8 threads
+# so progress polls stay snappy; 600s timeout so long encodes aren't killed.
+CMD ["sh", "-c", "exec gunicorn app:app --bind 0.0.0.0:${PORT:-7860} --workers 1 --threads 8 --timeout 600"]

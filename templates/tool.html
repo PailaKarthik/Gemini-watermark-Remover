@@ -471,6 +471,7 @@ const MSG = {
   m_sel_file: {{ t.tool.m_sel_file|tojson }},
   m_queued: {{ t.tool.m_queued|tojson }},
   m_uploading: {{ t.tool.m_uploading|tojson }},
+  m_upfail: {{ t.tool.m_upfail|tojson }},
   m_err: {{ t.tool.m_err|tojson }},
   m_toosmall: {{ t.tool.m_toosmall|tojson }},
   m_selected: {{ t.tool.m_selected|tojson }},
@@ -604,14 +605,37 @@ async function setFile(f) {
   say(mf('m_queued', f.name, kind, natW, natH));
   stageText.textContent = stg('select');
   setPill(PILL.ready, '');
-  const fd = new FormData(); fd.append('file', f);
-  say(mf('m_uploading'));
-  const r = await fetch('/api/upload', { method:'POST', body: fd });
-  const j = await r.json();
-  if (j.error) { say(mf('m_err') + j.error, 'err'); return; }
+  const j = await uploadWithProgress(f);
+  fill.style.width = '5%';
+  if (j.error) { say(mf('m_err') + (j.error === 'UPFAIL' ? mf('m_upfail') : j.error), 'err'); setPill(PILL.error, 'err'); return; }
   jobId = j.job_id;
   if (j.steps) renderSteps(j.steps);
   updateGo();
+}
+
+function uploadWithProgress(f) {
+  return new Promise((resolve) => {
+    const fd = new FormData(); fd.append('file', f);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    setPill(PILL.working, 'work');
+    say(mf('m_uploading'));
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        const pct = Math.round(100 * e.loaded / e.total);
+        fill.style.width = pct + '%';
+        stageText.textContent = mf('m_uploading') + ' ' + pct + '%';
+      } else {
+        stageText.textContent = mf('m_uploading');
+      }
+    };
+    xhr.onload = () => {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch (err) { resolve({ error: 'UPFAIL' }); }
+    };
+    xhr.onerror = () => resolve({ error: 'UPFAIL' });
+    xhr.send(fd);
+  });
 }
 
 // ---- exact frame mapping (contain-fit: element may letterbox internally)
