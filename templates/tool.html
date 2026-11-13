@@ -472,6 +472,7 @@ const MSG = {
   m_queued: {{ t.tool.m_queued|tojson }},
   m_uploading: {{ t.tool.m_uploading|tojson }},
   m_upfail: {{ t.tool.m_upfail|tojson }},
+  m_toobig: {{ t.tool.m_toobig|tojson }},
   m_err: {{ t.tool.m_err|tojson }},
   m_toosmall: {{ t.tool.m_toosmall|tojson }},
   m_selected: {{ t.tool.m_selected|tojson }},
@@ -566,6 +567,7 @@ function fmt(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60)
 async function setFile(f) {
   file = f;
   kind = f.type.startsWith('image') ? 'image' : 'video';
+  if (f.size > 524288000) { say(mf('m_err') + mf('m_toobig'), 'err'); file = null; return; }
   sel = null; drawSel();
   document.getElementById('dropText').textContent = mf('m_sel_file', f.name, (f.size/1048576).toFixed(1));
   const url = URL.createObjectURL(f);

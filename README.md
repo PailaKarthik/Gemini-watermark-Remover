@@ -93,7 +93,7 @@ docker build -t gwm-remover .
 docker run -p 5000:5000 gwm-remover
 ```
 
-The app binds `0.0.0.0` and reads the `PORT` env var automatically.
+The app binds `0.0.0.0` and reads the `PORT` env var automatically. Production runs on **gunicorn** (1 worker × 4 threads, 900s timeout) with **headless OpenCV** — tuned to stay inside small-instance RAM (≈512 MB): in-place (zero-copy) editing, one video encode at a time, 500 MB upload cap, quiet ffmpeg logs, finished jobs + files auto-swept after 1 hour. Health check: `/healthz`.
 
 </details>
 

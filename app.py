@@ -16,11 +16,18 @@ import traceback
 import cv2
 import numpy as np
 import imageio_ffmpeg
+
+try:
+    # Small shared deploy CPUs: fewer OpenCV threads = less contention/RAM.
+    # Inpainting quality is identical; only parallelism changes.
+    cv2.setNumThreads(2)
+except Exception:
+    pass
 from flask import Flask, request, jsonify, send_file, send_from_directory, render_template, Response, redirect
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
-from remover import clamp_box, mask_from_box, clean_with_bbox, mask_bbox, remove_region
+from remover import clamp_box, mask_from_box, clean_with_bbox, mask_bbox
 from translations import LANGS, META, merged
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -34,12 +41,43 @@ ALLOWED_VID = {".mp4", ".mov", ".m4v", ".webm", ".mkv", ".avi"}
 
 jobs = {}
 
+# ---- production guards (Render free ≈ 512 MB RAM) ----
+MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+VIDEO_CONCURRENCY = 1          # one video encode at a time: each holds a frame + ffmpeg pipe
+_video_slot = threading.Semaphore(VIDEO_CONCURRENCY)
+JOB_TTL = 3600                 # finished jobs + their files are swept after 1h
+JOB_CAP = 60
+
+
+def _prune_jobs():
+    """Drop finished jobs older than JOB_TTL (or beyond JOB_CAP) and delete
+    their files. Keeps RAM (jobs dict) and ephemeral disk bounded."""
+    try:
+        now = time.time()
+        for jid in list(jobs.keys()):
+            j = jobs.get(jid)
+            if not j or not j.get("done"):
+                continue
+            age = now - j.get("t_end", j.get("t0", now))
+            if age < JOB_TTL and len(jobs) <= JOB_CAP:
+                continue
+            for p in (j.get("src"), j.get("dst"), j.get("preview")):
+                try:
+                    if p and os.path.exists(p):
+                        os.remove(p)
+                except OSError:
+                    pass
+            jobs.pop(jid, None)
+    except Exception:
+        pass
+
 STEPS_IMAGE = ["upload", "select", "remove", "done"]
 STEPS_VIDEO = ["upload", "select", "remove", "encode", "done"]
 STEP_LABELS = {"upload": "Upload", "select": "Select region",
                "remove": "Remove", "encode": "Encode video", "done": "Done"}
 
 app = Flask(__name__, static_folder="static")
+app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
 CORS(app)
 
 
@@ -185,6 +223,11 @@ def sitemap_xml():
     return Response(xml, mimetype="application/xml")
 
 
+@app.route("/healthz")
+def healthz():
+    return Response("ok", mimetype="text/plain")
+
+
 @app.route("/robots.txt")
 def robots_txt():
     root = request.url_root.rstrip("/")
@@ -192,6 +235,13 @@ def robots_txt():
             "Allow: /\n\n"
             f"Sitemap: {root}/sitemap.xml\n")
     return Response(body, mimetype="text/plain")
+
+
+@app.errorhandler(413)
+def too_large(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "File too large (max 500 MB)."}), 413
+    return render_template("404.html"), 413
 
 
 @app.errorhandler(404)
@@ -229,12 +279,19 @@ def process_image(job, src, dst, box):
     job["progress"] = 25
 
     log(job, "Building pixel-tight mask inside your selection...")
-    out, mask = remove_region(img, box)
+    mask = mask_from_box(img, box)
     job["region"]["masked_px"] = int((mask > 0).sum())
     log(job, f"Mask covers {int((mask > 0).sum())} px. Filling + matching texture...")
     job["progress"] = 70
     _set_step(job, "remove", "done")
     _set_step(job, "done", "active")
+
+    # In-place fill: identical pixels to the old copy-based path, but peak
+    # RAM is halved (no full-frame duplicate) — matters on 512 MB deploys.
+    bbox = mask_bbox(mask)
+    if bbox:
+        clean_with_bbox(img, mask, bbox)
+    out = img
 
     ext = os.path.splitext(dst)[1].lower()
     if ext in (".jpg", ".jpeg"):
@@ -284,7 +341,7 @@ def process_video(job, src, dst, box):
     # Single-pass: pipe cleaned frames straight into x264 (no temp file).
     # superfast preset: ~2x the encode speed of veryfast at the same CRF 17
     # (visually identical), tuned for small shared deploy CPUs.
-    cmd = [ffmpeg, "-y",
+    cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "warning",
            "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{w}x{h}",
            "-r", f"{fps:.3f}", "-i", "pipe:0",
            "-i", src,
@@ -336,7 +393,11 @@ def run_job(job_id):
         if job["kind"] == "image":
             process_image(job, job["src"], job["dst"], job["box"])
         else:
-            process_video(job, job["src"], job["dst"], job["box"])
+            # One video encode at a time: bounds RAM on small deploys.
+            # Waiting jobs keep polling; their stage stays "processing".
+            log(job, "Waiting for the encode slot...")
+            with _video_slot:
+                process_video(job, job["src"], job["dst"], job["box"])
         job["stage"] = "done"
         job["done"] = True
     except Exception as e:
@@ -345,10 +406,13 @@ def run_job(job_id):
         job["done"] = True
         log(job, f"ERROR: {e}")
         traceback.print_exc()
+    finally:
+        job["t_end"] = time.time()
 
 
 @app.route("/api/upload", methods=["POST"])
 def upload():
+    _prune_jobs()
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     f = request.files["file"]
@@ -460,6 +524,7 @@ def preview_file(job_id):
 
 @app.route("/api/status/<job_id>")
 def status(job_id):
+    _prune_jobs()
     job = jobs.get(job_id)
     if not job:
         return jsonify({"error": "Unknown job"}), 404
