@@ -816,6 +816,26 @@ function showPreview() {
   }, 350);
 }
 
+// Bounding box of nonzero pixels, scanned manually (this OpenCV.js build
+// exposes no findNonZero). Returns {x,y,w,h} or null when empty.
+function maskBounds(mask) {
+  const d = mask.data, W = mask.cols, H = mask.rows;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) {
+    const row = y * W;
+    for (let x = 0; x < W; x++) {
+      if (d[row + x]) {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  if (x1 < 0) return null;
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+
 // ---- shared on-device core (photos + every video frame) ----
 // tmp collects cv.Mats so the caller can delete them (WASM has no GC).
 // gray: single-channel full-frame Mat. box: {x,y,w,h} floats.
@@ -874,9 +894,8 @@ function cvFillWithMask(rgb, mask, bbox, tmp) {
   if (bbox) {
     brect = new cv.Rect(bbox.x0, bbox.y0, bbox.x1 - bbox.x0, bbox.y1 - bbox.y0);
   } else {
-    const nz = track(new cv.Mat());
-    cv.findNonZero(mask, nz);
-    const br = cv.boundingRect(nz);
+    const br = maskBounds(mask);
+    if (!br) throw new Error('empty mask');
     const bp = 10, W = mask.cols, H = mask.rows;
     const bx0 = Math.max(br.x - bp, 0), by0 = Math.max(br.y - bp, 0);
     const bx1 = Math.min(br.x + br.width + bp, W), by1 = Math.min(br.y + br.height + bp, H);
@@ -1150,9 +1169,8 @@ async function sampleUnionMask(v, work, wctx, W, H, fracs, box, tmp) {
   }
   if (!union) throw new Error('no samples');
   const maskedPx = cv.countNonZero(union);
-  const nz = tmp.push(new cv.Mat()) && tmp[tmp.length - 1];
-  cv.findNonZero(union, nz);
-  const br = cv.boundingRect(nz);
+  const br = maskBounds(union);
+  if (!br) throw new Error('empty mask');
   const bp = 10;
   const x0 = Math.max(br.x - bp, 0), y0 = Math.max(br.y - bp, 0);
   const x1 = Math.min(br.x + br.width + bp, W), y1 = Math.min(br.y + br.height + bp, H);
