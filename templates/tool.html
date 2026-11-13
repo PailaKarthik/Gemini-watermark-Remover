@@ -1422,8 +1422,11 @@ async function removeVideoLocal() {
     let orientChecked = false, fellBack = false;
     const runDemux = async () => {
       // Fast path: exact demux + hardware decode, timestamps preserved.
+      // Backpressured: compressed samples wait in `pending`, at most ~8
+      // frames sit decoded in `vq`, so long/high-res clips can't OOM the tab.
       const vq = [];
-      let demuxErr = null, fed = 0, delivered = 0;
+      const pending = [];
+      let demuxErr = null, fed = 0, delivered = 0, srcDone = false;
       const ts = demux.timescale || 90000;
       dec = new VideoDecoder({
         output: (f) => { vq.push(f); },
@@ -1433,18 +1436,11 @@ async function removeVideoLocal() {
       mp4f.onSamples = (id, user, samples) => {
         for (const s of samples) {
           delivered++;
-          try {
-            dec.decode(new EncodedVideoChunk({
-              type: s.is_sync ? 'key' : 'delta',
-              timestamp: Math.round(s.cts * 1e6 / ts),
-              duration: Math.round(s.duration * 1e6 / ts),
-              data: s.data,
-            }));
-          } catch (e) { demuxErr = e; }
-          fed++;
+          pending.push(s); // compressed: decode on demand in the loop below
         }
+        fed = delivered;
         try {
-          if (delivered >= demux.total) { try { mp4f.stop(); } catch (e) {} }
+          if (delivered >= demux.total) { try { mp4f.stop(); } catch (e) {} srcDone = true; }
           else { try { mp4f.releaseUsedSamples(demux.trackId, fed); } catch (e) {} }
         } catch (e) {}
       };
@@ -1452,8 +1448,23 @@ async function removeVideoLocal() {
       mp4f.setExtractionOptions(demux.trackId, null, { nbSamples: demux.total });
       mp4f.start();
       let lastActive = performance.now();
+      const pump = () => {
+        while (pending.length && vq.length < 8 && dec.decodeQueueSize < 8) {
+          const s = pending.shift();
+          lastActive = performance.now();
+          try {
+            dec.decode(new EncodedVideoChunk({
+              type: s.is_sync ? 'key' : 'delta',
+              timestamp: Math.round(s.cts * 1e6 / ts),
+              duration: Math.round(s.duration * 1e6 / ts),
+              data: s.data,
+            }));
+          } catch (e) { demuxErr = e; break; }
+        }
+      };
       while (true) {
         if (demuxErr) throw demuxErr;
+        pump();
         const fr = vq.shift();
         if (fr) {
           lastActive = performance.now();
@@ -1466,6 +1477,7 @@ async function removeVideoLocal() {
               // in display coordinates — seek instead (browser un-rotates).
               for (const q of vq) { try { q.close(); } catch (e) {} }
               vq.length = 0;
+              pending.length = 0;
               try { fr.close(); } catch (e) {}
               try { dec.close(); } catch (e) {}
               try { mp4f.stop(); } catch (e) {}
@@ -1483,7 +1495,7 @@ async function removeVideoLocal() {
           await waitQueue();
           continue;
         }
-        if (delivered >= demux.total) break;
+        if (srcDone && !pending.length && !vq.length && dec.decodeQueueSize === 0) break;
         // Stall guard: a wedged demuxer/decoder must never hang the job —
         // the caller falls back to seek-decoding instead.
         if (performance.now() - lastActive > 30000) throw new Error('demux stall');
