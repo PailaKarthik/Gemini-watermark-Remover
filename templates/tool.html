@@ -473,6 +473,9 @@ const MSG = {
   m_uploading: {{ t.tool.m_uploading|tojson }},
   m_upfail: {{ t.tool.m_upfail|tojson }},
   m_toobig: {{ t.tool.m_toobig|tojson }},
+  m_uploaded: {{ t.tool.m_uploaded|tojson }},
+  m_badfile: {{ t.tool.m_badfile|tojson }},
+  m_lost: {{ t.tool.m_lost|tojson }},
   m_err: {{ t.tool.m_err|tojson }},
   m_toosmall: {{ t.tool.m_toosmall|tojson }},
   m_selected: {{ t.tool.m_selected|tojson }},
@@ -550,6 +553,7 @@ const statusPill = document.getElementById('statusPill');
 const actElapsed = document.getElementById('actElapsed');
 const maxBtn = document.getElementById('maxBtn');
 let file = null, kind = null, jobId = null, timer = null, shownLogs = 0;
+let uploadXHR = null, uploadSeq = 0, pollFails = 0;
 let clockTimer = null, t0 = 0;
 let mediaEl = null, natW = 0, natH = 0;
 let sel = null, drawing = false, startPt = null, downXY = null, downT = 0;
@@ -585,6 +589,14 @@ async function setFile(f) {
   });
   natW = kind === 'image' ? mediaEl.naturalWidth : mediaEl.videoWidth;
   natH = kind === 'image' ? mediaEl.naturalHeight : mediaEl.videoHeight;
+  if (!natW || !natH || !isFinite(natW) || !isFinite(natH)) {
+    say(mf('m_err') + mf('m_badfile'), 'err');
+    setPill(PILL.error, 'err');
+    overlay.style.display = 'none';
+    if (mediaEl) { mediaEl.remove(); mediaEl = null; }
+    file = null; natW = 0; natH = 0;
+    return;
+  }
   if (kind === 'video') {
     mediaEl.addEventListener('resize', () => {
       if (mediaEl.videoWidth) { natW = mediaEl.videoWidth; natH = mediaEl.videoHeight; drawSel(); }
@@ -607,9 +619,28 @@ async function setFile(f) {
   say(mf('m_queued', f.name, kind, natW, natH));
   stageText.textContent = stg('select');
   setPill(PILL.ready, '');
+  // A new file supersedes any in-flight upload: abort it so a stale
+  // response can never overwrite this file's job.
+  if (uploadXHR) { const x = uploadXHR; uploadXHR = null; try { x.abort(); } catch (e) {} }
+  const mySeq = ++uploadSeq;
   const j = await uploadWithProgress(f);
+  if (mySeq !== uploadSeq) return;              // superseded by a newer file
+  if (!j || j.error === 'ABORTED') return;      // aborted: stay silent
+  uploadXHR = null;
+  if (j.error) {
+    if (j.error === 'TOOBIG') say(mf('m_err') + mf('m_toobig'), 'err');
+    else if (j.error === 'UPFAIL') say(mf('m_err') + mf('m_upfail'), 'err');
+    else say(mf('m_err') + j.error, 'err');
+    setPill(PILL.error, 'err');
+    stageText.textContent = stg('failed');
+    fill.style.width = '0%';
+    return;
+  }
+  // Upload finished: confirm it, restore the idle look, hand over to selection.
+  say(mf('m_uploaded', f.name));
+  setPill(PILL.ready, '');
+  stageText.textContent = stg('select');
   fill.style.width = '5%';
-  if (j.error) { say(mf('m_err') + (j.error === 'UPFAIL' ? mf('m_upfail') : j.error), 'err'); setPill(PILL.error, 'err'); return; }
   jobId = j.job_id;
   if (j.steps) renderSteps(j.steps);
   updateGo();
@@ -632,10 +663,16 @@ function uploadWithProgress(f) {
       }
     };
     xhr.onload = () => {
-      try { resolve(JSON.parse(xhr.responseText)); }
-      catch (err) { resolve({ error: 'UPFAIL' }); }
+    if (uploadXHR === xhr) uploadXHR = null;
+    if (xhr.status === 413) { resolve({ error: 'TOOBIG' }); return; }
+    if (xhr.status < 200 || xhr.status >= 300) { resolve({ error: 'UPFAIL' }); return; }
+    try { resolve(JSON.parse(xhr.responseText)); }
+    catch (err) { resolve({ error: 'UPFAIL' }); }
     };
-    xhr.onerror = () => resolve({ error: 'UPFAIL' });
+    xhr.onerror = () => { if (uploadXHR === xhr) uploadXHR = null; resolve({ error: 'UPFAIL' }); };
+    xhr.onabort = () => { if (uploadXHR === xhr) uploadXHR = null; resolve({ error: 'ABORTED' }); };
+    xhr.timeout = 0; // uploads of large videos take a while; never time out
+    uploadXHR = xhr;
     xhr.send(fd);
   });
 }
@@ -796,15 +833,36 @@ goBtn.onclick = async () => {
   const r = await fetch('/api/process/' + jobId, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ box: [sel.x, sel.y, sel.w, sel.h] })
-  });
-  const j = await r.json();
+  }).catch(() => null);
+  if (!r) {
+    say(mf('m_err') + mf('m_lost'), 'err');
+    stageText.textContent = stg('failed'); setPill(PILL.error, 'err');
+    goBtn.disabled = false; clearBtn.disabled = false; stopClock(); return;
+  }
+  const j = await r.json().catch(() => ({ error: 'UPFAIL' }));
   if (j.error) { say(mf('m_err') + j.error, 'err'); stageText.textContent = stg('failed'); setPill(PILL.error, 'err'); goBtn.disabled = false; stopClock(); return; }
+  pollFails = 0;
   timer = setInterval(poll, 600);
 };
 
 async function poll() {
-  const r = await fetch('/api/status/' + jobId);
-  const j = await r.json();
+  let j = null;
+  try {
+    const r = await fetch('/api/status/' + jobId);
+    j = await r.json();
+    pollFails = 0;
+  } catch (e) {
+    // Transient blip: keep waiting. Persistent outage: stop and say so
+    // instead of spinning the progress bar forever.
+    if (++pollFails >= 10) {
+      clearInterval(timer); stopClock();
+      stageText.textContent = stg('failed'); setPill(PILL.error, 'err');
+      say(mf('m_err') + mf('m_lost'), 'err');
+      goBtn.disabled = false; clearBtn.disabled = false;
+    }
+    return;
+  }
+  if (!j) return;
   fill.style.width = (j.progress||0) + '%';
   if (j.steps) renderSteps(j.steps);
   stageText.textContent = stg(j.stage) + ' · ' + (j.progress||0) + '%';
