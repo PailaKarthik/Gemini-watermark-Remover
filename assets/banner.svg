@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="240" viewBox="0 0 920 240" role="img" aria-label="Gemini Watermark Remover banner">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0a12"/>
+      <stop offset="1" stop-color="#141026"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset=".5" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#bef264"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset=".55" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#bef264"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".25" cy=".2" r=".9">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx=".85" cy=".9" r=".8">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="920" height="240" rx="20" fill="url(#bg)"/>
+  <rect width="920" height="240" rx="20" fill="url(#glow)"/>
+  <rect width="920" height="240" rx="20" fill="url(#glow2)"/>
+  <rect x="1" y="1" width="918" height="238" rx="19" fill="none" stroke="url(#accent)" stroke-opacity=".45" stroke-width="2"/>
+
+  <!-- sparkle mark -->
+  <g transform="translate(96,120)">
+    <rect x="-46" y="-46" width="92" height="92" rx="22" fill="#17122b" stroke="url(#accent)" stroke-opacity=".55" stroke-width="2"/>
+    <path d="M0 -30 L8 -8 L30 0 L8 8 L0 30 L-8 8 L-30 0 L-8 -8 Z" fill="url(#spark)"/>
+    <path d="M26 -28 L29 -19 L38 -16 L29 -13 L26 -4 L23 -13 L14 -16 L23 -19 Z" fill="#bef264" opacity=".9"/>
+  </g>
+
+  <!-- titles -->
+  <text x="180" y="104" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="40" font-weight="800" fill="#f4f2ff" letter-spacing="-.5">Gemini Watermark</text>
+  <text x="180" y="152" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="40" font-weight="800" fill="url(#accent)" letter-spacing="-.5">Remover</text>
+  <text x="180" y="188" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="500" fill="#9b96b8" letter-spacing="1.6">DRAG · SELECT · CLEANED — 100% LOCAL, ORIGINAL QUALITY</text>
+
+  <!-- corner ticks -->
+  <g stroke="#67e8f9" stroke-opacity=".8" stroke-width="3" fill="none">
+    <path d="M842 26 v14 M842 26 h-14"/>
+    <path d="M78 214 v-14 M78 214 h14"/>
+  </g>
+</svg>
