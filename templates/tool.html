@@ -898,7 +898,7 @@ function cvFillWithMask(rgb, mask, bbox, tmp) {
     if (!br) throw new Error('empty mask');
     const bp = 10, W = mask.cols, H = mask.rows;
     const bx0 = Math.max(br.x - bp, 0), by0 = Math.max(br.y - bp, 0);
-    const bx1 = Math.min(br.x + br.width + bp, W), by1 = Math.min(br.y + br.height + bp, H);
+    const bx1 = Math.min(br.x + br.w + bp, W), by1 = Math.min(br.y + br.h + bp, H);
     brect = new cv.Rect(bx0, by0, bx1 - bx0, by1 - by0);
   }
   const crop = track(rgb.roi(brect));
@@ -1024,6 +1024,7 @@ async function removeImageLocal() {
   } catch (err) {
     // Local processing failed (e.g. an extreme image size exhausting tab
     // memory). Report it plainly; the original file is untouched.
+    try { console.warn('remove failed:', err); } catch (e) {}
     say(mf('m_err') + mf('m_badfile'), 'err');
     stageText.textContent = stg('failed');
     setPill(PILL.error, 'err');
@@ -1181,7 +1182,7 @@ async function sampleUnionMask(v, work, wctx, W, H, fracs, box, tmp) {
   if (!br) throw new Error('empty mask');
   const bp = 10;
   const x0 = Math.max(br.x - bp, 0), y0 = Math.max(br.y - bp, 0);
-  const x1 = Math.min(br.x + br.width + bp, W), y1 = Math.min(br.y + br.height + bp, H);
+  const x1 = Math.min(br.x + br.w + bp, W), y1 = Math.min(br.y + br.h + bp, H);
   return { union, bbox: { x0, y0, x1, y1 }, maskedPx };
 }
 
