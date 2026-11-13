@@ -1,34 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Gemini Watermark Remover — Free AI Watermark Remover for Photos &amp; Videos</title>
-<meta name="description" content="Free Gemini watermark remover. Remove the Gemini AI watermark from photos and videos in seconds — pixel-exact selection, original quality kept, 100% local with no cloud uploads."/>
-<meta name="keywords" content="gemini watermark remover, remove gemini watermark, gemini ai watermark, ai watermark remover, remove watermark from video, remove watermark from photo, free watermark remover"/>
+<title>{{ t.tool.title }}</title>
+<meta name="description" content="{{ t.tool.desc }}"/>
+<meta name="keywords" content="{{ t.tool.kw }}"/>
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1"/>
 <meta name="theme-color" content="#0a0a12"/>
 <meta property="og:type" content="website"/>
-<meta property="og:site_name" content="Gemini Watermark Remover"/>
-<meta property="og:title" content="Gemini Watermark Remover — Free AI Watermark Remover for Photos &amp; Videos"/>
-<meta property="og:description" content="Remove the Gemini AI watermark from photos and videos in seconds — pixel-exact selection, original quality, 100% local."/>
-<meta property="og:locale" content="en_US"/>
+<meta property="og:site_name" content="{{ t.tool.ld_name }}"/>
+<meta property="og:title" content="{{ t.tool.title }}"/>
+<meta property="og:description" content="{{ t.tool.desc }}"/>
+<meta property="og:locale" content="{{ {'en':'en_US','es':'es_ES','de':'de_DE','fr':'fr_FR','it':'it_IT','pt':'pt_PT','nl':'nl_NL','pl':'pl_PL'}[lang] }}"/>
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="Gemini Watermark Remover — Free &amp; Local"/>
-<meta name="twitter:description" content="Remove the Gemini AI watermark from photos and videos in seconds. Free, original quality, nothing leaves your machine."/>
+<meta name="twitter:title" content="{{ t.tool.ld_name }} — {{ t.tool.chip4 }}"/>
+<meta name="twitter:description" content="{{ t.tool.desc }}"/>
+{% for code, url in alt.items() %}
+<link rel="alternate" hreflang="{{ code }}" href="{{ url }}"/>
+{% endfor %}
+<link rel="alternate" hreflang="x-default" href="{{ site_url }}"/>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"WebApplication","name":"Gemini Watermark Remover","url":"/","applicationCategory":"MultimediaApplication","operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Free tool to remove the Gemini AI watermark from photos and videos with pixel-exact manual selection, original-quality output, and 100% local processing.","featureList":["Pixel-exact manual selection","Region-only editing","Original-resolution photo output","x264 CRF 17 video encoding with original audio","Grain-matched inpainting","100% local processing"]},
-{"@type":"HowTo","name":"How to remove the Gemini watermark","totalTime":"PT1M","step":[
-{"@type":"HowToStep","position":1,"name":"Upload your photo or video","text":"Drop your file into the remover. It stays on your computer."},
-{"@type":"HowToStep","position":2,"name":"Drag a box over the watermark","text":"Drag a tight selection around the badge. A preview confirms the exact pixels."},
-{"@type":"HowToStep","position":3,"name":"Remove and download","text":"Press Remove, then download the cleaned file at original quality."}]},
+{"@type":"WebApplication","name":{{ t.tool.ld_name|tojson }},"url":{{ site_url|tojson }},"applicationCategory":"MultimediaApplication","operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":{{ t.tool.ld_desc|tojson }},"featureList":["Pixel-exact manual selection","Region-only editing","Original-resolution photo output","x264 CRF 17 video encoding with original audio","Grain-matched inpainting","100% local processing"]},
+{"@type":"HowTo","name":{{ t.tool.ld_how|tojson }},"totalTime":"PT1M","step":[
+{"@type":"HowToStep","position":1,"name":{{ t.tool.ld_s1n|tojson }},"text":{{ t.tool.ld_s1t|tojson }}},
+{"@type":"HowToStep","position":2,"name":{{ t.tool.ld_s2n|tojson }},"text":{{ t.tool.ld_s2t|tojson }}},
+{"@type":"HowToStep","position":3,"name":{{ t.tool.ld_s3n|tojson }},"text":{{ t.tool.ld_s3t|tojson }}}]},
 {"@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Is this Gemini watermark remover free?","acceptedAnswer":{"@type":"Answer","text":"Yes — free with no accounts, no limits, and no watermark on your output."}},
-{"@type":"Question","name":"Will the quality drop?","acceptedAnswer":{"@type":"Answer","text":"No. Photos save at original resolution; video is encoded once at visually lossless x264 CRF 17 with original audio. Pixels outside your selection are untouched."}},
-{"@type":"Question","name":"Where do my files go?","acceptedAnswer":{"@type":"Answer","text":"Nowhere. Processing runs locally on your own computer — nothing is uploaded to a cloud."}}]}]}
+{"@type":"Question","name":{{ t.tool.ld_q1|tojson }},"acceptedAnswer":{"@type":"Answer","text":{{ t.tool.ld_a1|tojson }}}},
+{"@type":"Question","name":{{ t.tool.ld_q2|tojson }},"acceptedAnswer":{"@type":"Answer","text":{{ t.tool.ld_a2|tojson }}}},
+{"@type":"Question","name":{{ t.tool.ld_q3|tojson }},"acceptedAnswer":{"@type":"Answer","text":{{ t.tool.ld_a3|tojson }}}}}]}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -333,54 +337,54 @@
 <div class="float f1"></div><div class="float f2"></div><div class="float f3"></div>
 <div class="wrap">
   <nav class="pagenav" aria-label="Site pages">
-    <a href="/">Remover</a>
-    <a href="/how-it-works">How it works</a>
-    <a href="/features">Features</a>
-    <a href="/guides">Guides</a>
-    <a href="/faq">FAQ</a>
-    <a href="/about">About</a>
+    <a href="{{ lang_prefix }}/remover">{{ t.nav.remover }}</a>
+    <a href="{{ lang_prefix }}/how-it-works">{{ t.nav.how }}</a>
+    <a href="{{ lang_prefix }}/features">{{ t.nav.features }}</a>
+    <a href="{{ lang_prefix }}/guides">{{ t.nav.guides }}</a>
+    <a href="{{ lang_prefix }}/faq">{{ t.nav.faq }}</a>
+    <a href="{{ lang_prefix }}/about">{{ t.nav.about }}</a>
   </nav>
   <header class="top">
     <div class="rail"><i></i><i></i><i></i><i></i><i></i></div>
     <div class="brand">
       <div class="logo"><b>✦</b></div>
-      <h1><span>Gemini Watermark Remover</span></h1>
-      <p class="sub">Draw a box around the watermark. Everything else stays pixel-perfect.</p>
+      <h1><span>{{ t.tool.brand }}</span></h1>
+      <p class="sub">{{ t.tool.tagline }}</p>
     </div>
     <span class="idchip">v3 · LOCAL</span>
   </header>
 
   <div class="main">
   <aside class="railbar">
-    <div class="guide"><h3><span class="n">1</span>Upload</h3>
-      <p>Drop your <b>video or photo</b>. It lands in the <b>left panel</b> — scrub to a sharp frame.</p></div>
-    <div class="guide"><h3><span class="n">2</span>Select</h3>
-      <p><b>Drag</b> a tight box over the watermark. A <b>tap</b> just plays / pauses. Preview confirms the exact pixels.</p></div>
-    <div class="guide"><h3><span class="n">3</span>Remove</h3>
-      <p>Hit <b>Remove</b> — cleaned across the <b>whole video</b>, previewed on the <b>right</b>, then download.</p></div>
-    <div class="gfoot"><b>Privacy:</b> 100% local. Nothing leaves your machine.</div>
+    <div class="guide"><h3><span class="n">1</span>{{ t.tool.g1t }}</h3>
+      <p>{{ t.tool.g1p|safe }}</p></div>
+    <div class="guide"><h3><span class="n">2</span>{{ t.tool.g2t }}</h3>
+      <p>{{ t.tool.g2p|safe }}</p></div>
+    <div class="guide"><h3><span class="n">3</span>{{ t.tool.g3t }}</h3>
+      <p>{{ t.tool.g3p|safe }}</p></div>
+    <div class="gfoot">{{ t.tool.gpriv|safe }}</div>
   </aside>
 
   <div class="ws" id="tool">
-    <h3>Workspace</h3>
+    <h3>{{ t.tool.ws }}</h3>
     <div class="drop" id="drop">
-      <b id="dropText">Drop photo / video here or click to browse</b>
+      <b id="dropText">{{ t.tool.drop_b }}</b>
       <div class="fmt">PNG · JPG · WEBP · MP4 · MOV · WEBM</div>
       <input type="file" id="file" accept="image/*,video/*" style="display:none"/>
     </div>
     <div class="row">
-      <button class="primary" id="go" disabled>✦ Remove Watermark</button>
-      <button class="ghost" id="clear" disabled>Clear selection</button>
-      <button class="ghost" id="reset">Reset</button>
+      <button class="primary" id="go" disabled>{{ t.tool.btn_go }}</button>
+      <button class="ghost" id="clear" disabled>{{ t.tool.btn_clear }}</button>
+      <button class="ghost" id="reset">{{ t.tool.btn_reset }}</button>
     </div>
     <div class="steps" id="steps"></div>
-    <div class="prog"><div class="bar"><div id="fill"></div></div><span id="stage">Idle</span><span id="elapsed"></span></div>
+    <div class="prog"><div class="bar"><div id="fill"></div></div><span id="stage">{{ t.tool.idle }}</span><span id="elapsed"></span></div>
 
     <div class="compare">
       <div class="pane">
-        <header>ORIGINAL · DRAW BOX HERE <span class="tag orig">INPUT</span></header>
+        <header>{{ t.tool.pane1 }} <span class="tag orig">{{ t.tool.tag_in }}</span></header>
         <div class="selwrap" id="origWrap">
-          <div class="empty" id="origEmpty">No file yet<br/>upload to start selecting</div>
+          <div class="empty" id="origEmpty">{{ t.tool.empty1 }}</div>
           <div id="overlay" style="display:none"></div>
           <div id="selbox"><span class="lbl" id="selLbl"></span></div>
           <div id="playFlash" style="display:none">▶</div>
@@ -392,82 +396,129 @@
         </div>
       </div>
       <div class="pane">
-        <header>CLEANED <span style="display:flex;gap:8px;align-items:center"><span class="tag clean">OUTPUT</span><button class="ghost" id="maxBtn">⛶ Maximize</button></span></header>
+        <header>{{ t.tool.pane2 }} <span style="display:flex;gap:8px;align-items:center"><span class="tag clean">{{ t.tool.tag_out }}</span><button class="ghost" id="maxBtn">{{ t.tool.maximize }}</button></span></header>
         <div class="selwrap" id="cleanWrap">
-          <div class="empty">Result appears here<br/>after removal</div>
+          <div class="empty">{{ t.tool.empty2 }}</div>
         </div>
       </div>
     </div>
-    <div class="hint" id="selHint">👆 After upload, <b>drag a box</b> over the watermark in the left panel. <b>Tap</b> toggles play. Selection: <b id="selInfo">none</b></div>
+    <div class="hint" id="selHint">{{ t.tool.hint|safe }}</div>
     <div class="meta" id="meta"></div>
-    <div id="dl"><a id="dlLink" href="#">⬇ Download cleaned file</a></div>
+    <div id="dl"><a id="dlLink" href="#">{{ t.tool.dl_btn }}</a></div>
 
-    <div class="note">Only your selected region is edited — every other pixel passes through untouched.
-      Images save at original resolution; video is encoded once (x264 CRF&nbsp;17, same resolution +
-      FPS, original audio). Only the <i>visible</i> badge is removed — invisible SynthID may remain.
-      Use only on content you own.</div>
+    <div class="note">{{ t.tool.note|safe }}</div>
   </div>
 
   <aside class="actrail">
     <div class="activity">
       <div class="act-head">
         <div class="live-dot" id="liveDot"></div>
-        <h3>Live activity</h3>
-        <span id="statusPill">IDLE</span>
+        <h3>{{ t.tool.act_title }}</h3>
+        <span id="statusPill">{{ t.tool.pill_idle }}</span>
         <span id="actElapsed"></span>
       </div>
-      <div id="feed"><div class="fi"><span class="d"></span><span class="t">--:--:--</span><span>Engine idle. Upload a file to begin.</span></div></div>
+      <div id="feed"><div class="fi"><span class="d"></span><span class="t">--:--:--</span><span>{{ t.tool.act_feed0 }}</span></div></div>
     </div>
-    <div class="gfoot"><b>Tip:</b> log scrolls — newest entries land at the bottom.</div>
+    <div class="gfoot">{{ t.tool.act_tip|safe }}</div>
   </aside>
   </div>
 
   <!-- ===== SEO content sections ===== -->
   <section class="seo" id="how">
-    <h2>How to remove the Gemini watermark — the 3-step version</h2>
-    <p class="seolead">The free <strong>Gemini watermark remover</strong> erases the visible AI badge from your photos and videos without touching anything else. No sign-up, no cloud upload, no quality loss — the whole job runs on your own computer.</p>
+    <h2>{{ t.home.how_h2 }}</h2>
+    <p class="seolead">{{ t.home.lead }}</p>
     <ol class="ssteps">
-      <li><b>Upload</b> — drop your PNG, JPG, WebP, MP4, MOV or WebM into the tool. It never leaves your machine.</li>
-      <li><b>Select</b> — drag a tight box over the Gemini watermark. A pixel-exact preview confirms the region before anything is edited.</li>
-      <li><b>Remove &amp; download</b> — only those pixels are inpainted with grain-matched texture; everything else stays byte-identical. Photos keep original resolution; video is encoded once at visually lossless quality with the original audio.</li>
+      <li>{{ t.home.s1|safe }}</li>
+      <li>{{ t.home.s2|safe }}</li>
+      <li>{{ t.home.s3|safe }}</li>
     </ol>
-    <p class="more"><a href="/how-it-works">Read the full how-to guide →</a></p>
+    <p class="more"><a href="{{ lang_prefix }}/how-it-works">{{ t.home.more_how }}</a></p>
   </section>
 
   <section class="seo" id="features">
-    <h2>Why use this watermark remover?</h2>
+    <h2>{{ t.home.feat_h2 }}</h2>
     <div class="sgrid">
-      <div class="sfeat"><h3>◎ Pixel-exact selection</h3><p>You choose the region — no mis-detected "watermark" ever eats your content.</p></div>
-      <div class="sfeat"><h3>⬚ Region-only editing</h3><p>Every pixel outside your box is untouched. No global re-compression.</p></div>
-      <div class="sfeat"><h3>✦ Texture-aware fill</h3><p>Navier–Stokes inpainting + Telea fringe pass + grain matching for natural results.</p></div>
-      <div class="sfeat"><h3>▣ Original quality</h3><p>Original-resolution photos; x264 CRF 17 video with same resolution, FPS and audio.</p></div>
-      <div class="sfeat"><h3>⚡ Fast</h3><p>Crop-only processing and single-pass encoding — a 1080p clip typically finishes in seconds.</p></div>
-      <div class="sfeat"><h3>⌂ 100% local</h3><p>Nothing is uploaded anywhere. No accounts, no limits, free forever.</p></div>
+      {% for icon, name, desc in t.home.feats %}
+      <div class="sfeat"><h3>{{ icon }} {{ name }}</h3><p>{{ desc }}</p></div>
+      {% endfor %}
     </div>
-    <p class="more"><a href="/features">See all features in detail →</a></p>
+    <p class="more"><a href="{{ lang_prefix }}/features">{{ t.home.more_feat }}</a></p>
   </section>
 
   <section class="seo" id="faq">
-    <h2>Gemini watermark removal — FAQ</h2>
-    <details open><summary>Is it really free?</summary><p>Yes — no accounts, no usage limits, and no watermark stamped on your output.</p></details>
-    <details><summary>Will my image or video lose quality?</summary><p>Photos save at original resolution at quality 100. Video is encoded once with x264 at CRF 17 (visually lossless), same resolution, FPS, and original audio. Pixels outside your selection are untouched.</p></details>
-    <details><summary>Does it work on videos?</summary><p>Yes — scrub to a frame where the badge is sharp, drag one box, and the tool cleans every frame of the whole clip in a single pass with no flicker.</p></details>
-    <details><summary>Where do my files go?</summary><p>Nowhere. The engine runs locally on your computer; nothing is uploaded to a cloud service.</p></details>
-    <details><summary>Does it remove invisible SynthID?</summary><p>No. The tool removes the visible badge only — it doesn't add, remove, or alter hidden signatures. Use it on content you own.</p></details>
-    <p class="more"><a href="/faq">All questions answered →</a> · <a href="/guides/remove-gemini-watermark-from-videos">Video guide</a> · <a href="/guides/remove-gemini-watermark-from-photos">Photo guide</a></p>
+    <h2>{{ t.home.faq_h2 }}</h2>
+    {% for q, a in t.home.faqs %}
+    <details {% if loop.first %}open{% endif %}><summary>{{ q }}</summary><p>{{ a }}</p></details>
+    {% endfor %}
+    <p class="more"><a href="{{ lang_prefix }}/faq">{{ t.nav.faq }} →</a> · <a href="{{ lang_prefix }}/guides/remove-gemini-watermark-from-videos">{{ t.foot.g2 }}</a> · <a href="{{ lang_prefix }}/guides/remove-gemini-watermark-from-photos">{{ t.foot.g1 }}</a></p>
   </section>
 
   <footer class="bigfoot">
     <div class="fcols">
-      <div><h4>Gemini Watermark Remover</h4><p class="fabout">Free, local, pixel-exact removal of the Gemini AI badge from photos and videos. Only your selected region is edited — everything else stays original.</p></div>
-      <div><h4>Tool</h4><ul><li><a href="/#tool">Watermark remover</a></li><li><a href="/how-it-works">How it works</a></li><li><a href="/features">Features</a></li><li><a href="/faq">FAQ</a></li></ul></div>
-      <div><h4>Guides</h4><ul><li><a href="/guides/remove-gemini-watermark-from-photos">Photos guide</a></li><li><a href="/guides/remove-gemini-watermark-from-videos">Videos guide</a></li><li><a href="/guides/what-is-the-gemini-watermark">What is the badge?</a></li></ul></div>
-      <div><h4>Legal</h4><ul><li><a href="/about">About</a></li><li><a href="/privacy">Privacy</a></li><li><a href="/terms">Terms</a></li><li><a href="/sitemap.xml">Sitemap</a></li></ul></div>
+      <div><h4>{{ t.foot.brand }}</h4><p class="fabout">{{ t.foot.about_txt }}</p></div>
+      <div><h4>{{ t.foot.t_tool }}</h4><ul><li><a href="{{ lang_prefix }}/remover">{{ t.foot.l_remover }}</a></li><li><a href="{{ lang_prefix }}/how-it-works">{{ t.nav.how }}</a></li><li><a href="{{ lang_prefix }}/features">{{ t.nav.features }}</a></li><li><a href="{{ lang_prefix }}/faq">{{ t.nav.faq }}</a></li></ul></div>
+      <div><h4>{{ t.foot.t_guides }}</h4><ul><li><a href="{{ lang_prefix }}/guides/remove-gemini-watermark-from-photos">{{ t.foot.g1 }}</a></li><li><a href="{{ lang_prefix }}/guides/remove-gemini-watermark-from-videos">{{ t.foot.g2 }}</a></li><li><a href="{{ lang_prefix }}/guides/what-is-the-gemini-watermark">{{ t.foot.g3 }}</a></li></ul></div>
+      <div><h4>{{ t.foot.t_legal }}</h4><ul><li><a href="{{ lang_prefix }}/about">{{ t.nav.about }}</a></li><li><a href="{{ lang_prefix }}/privacy">{{ t.nav.privacy }}</a></li><li><a href="{{ lang_prefix }}/terms">{{ t.nav.terms }}</a></li><li><a href="/sitemap.xml">Sitemap</a></li></ul></div>
     </div>
-    <div class="flegal">© 2026 Gemini Watermark Remover · runs 100% locally · nothing leaves your machine · use only on content you own</div>
+    <div class="flegal">{{ t.foot.legal_line }}</div>
   </footer>
 </div>
 
+<script>
+/* ---- localized strings for client-side messages ---- */
+const MSG = {
+  m_cleared: {{ t.tool.m_cleared|tojson }},
+  m_sel_file: {{ t.tool.m_sel_file|tojson }},
+  m_queued: {{ t.tool.m_queued|tojson }},
+  m_uploading: {{ t.tool.m_uploading|tojson }},
+  m_err: {{ t.tool.m_err|tojson }},
+  m_toosmall: {{ t.tool.m_toosmall|tojson }},
+  m_selected: {{ t.tool.m_selected|tojson }},
+  m_prev1: {{ t.tool.m_prev1|tojson }},
+  m_prev2: {{ t.tool.m_prev2|tojson }},
+  m_removing: {{ t.tool.m_removing|tojson }},
+  m_done: {{ t.tool.m_done|tojson }},
+  m_none: {{ t.tool.m_none|tojson }},
+  m_region: {{ t.tool.m_region|tojson }},
+  m_cleaned: {{ t.tool.m_cleaned|tojson }},
+  empty2: {{ t.tool.empty2|tojson }},
+  maximize: {{ t.tool.maximize|tojson }},
+  m_exit: {{ t.tool.m_exit|tojson }}
+};
+const PILL = {
+  idle: {{ t.tool.pill_idle|tojson }},
+  ready: {{ t.tool.pill_ready|tojson }},
+  working: {{ t.tool.pill_working|tojson }},
+  done: {{ t.tool.pill_done|tojson }},
+  error: {{ t.tool.pill_error|tojson }}
+};
+const STAGE_NAMES = {
+  idle: {{ t.tool.stage_idle|tojson }},
+  select: {{ t.tool.stage_select|tojson }},
+  working: {{ t.tool.stage_working|tojson }},
+  done: {{ t.tool.stage_done|tojson }},
+  failed: {{ t.tool.stage_failed|tojson }},
+  /* backend stage strings -> localized */
+  'awaiting_selection': {{ t.tool.stg_await|tojson }},
+  'processing': {{ t.tool.stage_working|tojson }},
+  'done': {{ t.tool.stage_done|tojson }},
+  'error': {{ t.tool.stage_failed|tojson }},
+  'failed': {{ t.tool.stage_failed|tojson }}
+};
+const STEPS_T = {
+  upload: {{ t.tool.st_upload|tojson }},
+  select: {{ t.tool.st_select|tojson }},
+  remove: {{ t.tool.st_remove|tojson }},
+  encode: {{ t.tool.st_encode|tojson }},
+  done: {{ t.tool.st_done|tojson }}
+};
+function mf(key, ...args) {
+  let s = MSG[key] || key;
+  args.forEach((a, i) => { s = s.split('{' + i + '}').join(String(a)); });
+  return s;
+}
+function stg(s) { return STAGE_NAMES[String(s).toLowerCase()] || s; }
+</script>
 <script>
 const drop = document.getElementById('drop');
 const fileInput = document.getElementById('file');
@@ -507,7 +558,7 @@ drop.onclick = () => fileInput.click();
 drop.addEventListener('drop', ev => { if (ev.dataTransfer.files[0]) setFile(ev.dataTransfer.files[0]); });
 fileInput.onchange = e => { if (e.target.files[0]) setFile(e.target.files[0]); };
 document.getElementById('reset').onclick = () => location.reload();
-clearBtn.onclick = () => { sel = null; drawSel(); updateGo(); say('Selection cleared. Drag a new box.'); };
+clearBtn.onclick = () => { sel = null; drawSel(); updateGo(); say(mf('m_cleared')); };
 
 function fmt(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
 
@@ -515,7 +566,7 @@ async function setFile(f) {
   file = f;
   kind = f.type.startsWith('image') ? 'image' : 'video';
   sel = null; drawSel();
-  document.getElementById('dropText').textContent = 'Selected: ' + f.name + ' (' + (f.size/1048576).toFixed(1) + ' MB)';
+  document.getElementById('dropText').textContent = mf('m_sel_file', f.name, (f.size/1048576).toFixed(1));
   const url = URL.createObjectURL(f);
   origWrap.querySelectorAll('img,video').forEach(e => e.remove());
   document.getElementById('origEmpty')?.remove();
@@ -548,16 +599,16 @@ async function setFile(f) {
     vctrl.classList.remove('on');
     playFlash.style.display = 'none';
   }
-  cleanWrap.innerHTML = '<div class="empty">Result appears here<br/>after removal</div>';
+  cleanWrap.innerHTML = '<div class="empty">' + MSG.empty2 + '</div>';
   maxBtn.classList.remove('on');
-  say('Queued: ' + f.name + ' (' + kind + ', ' + natW + 'x' + natH + 'px). Now drag a box over the watermark.');
-  stageText.textContent = 'Select region';
-  setPill('READY', '');
+  say(mf('m_queued', f.name, kind, natW, natH));
+  stageText.textContent = stg('select');
+  setPill(PILL.ready, '');
   const fd = new FormData(); fd.append('file', f);
-  say('Uploading to local engine...');
+  say(mf('m_uploading'));
   const r = await fetch('/api/upload', { method:'POST', body: fd });
   const j = await r.json();
-  if (j.error) { say('ERROR: ' + j.error, 'err'); return; }
+  if (j.error) { say(mf('m_err') + j.error, 'err'); return; }
   jobId = j.job_id;
   if (j.steps) renderSteps(j.steps);
   updateGo();
@@ -607,8 +658,8 @@ overlay.addEventListener('pointerup', e => {
   sel.y = Math.max(0, Math.min(Math.round(sel.y), natH - 1));
   sel.w = Math.max(0, Math.min(Math.round(sel.w), natW - sel.x));
   sel.h = Math.max(0, Math.min(Math.round(sel.h), natH - sel.y));
-  if (sel.w < 8 || sel.h < 8) { sel = null; say('Box too small — drag a slightly bigger box.'); }
-  else { say('Selected ' + sel.w + 'x' + sel.h + 'px. Check the preview, then Remove.'); showPreview(); }
+  if (sel.w < 8 || sel.h < 8) { sel = null; say(mf('m_toosmall')); }
+  else { say(mf('m_selected', sel.w, sel.h)); showPreview(); }
   drawSel(); updateGo();
 });
 
@@ -629,7 +680,7 @@ vPlay.onclick = togglePlay;
 vSeek.addEventListener('input', () => { if (mediaEl && mediaEl.duration) mediaEl.currentTime = vSeek.value / 1000 * mediaEl.duration; });
 
 function drawSel() {
-  if (!sel || !mediaEl || !natW || !natH) { selbox.style.display = 'none'; selInfo.textContent = 'none'; clearBtn.disabled = true; hidePreview(); return; }
+  if (!sel || !mediaEl || !natW || !natH) { selbox.style.display = 'none'; selInfo.textContent = MSG.m_none; clearBtn.disabled = true; hidePreview(); return; }
   const r = frameRect(), w = origWrap.getBoundingClientRect();
   const sx = r.width / natW, sy = r.height / natH;
   const lx = r.left - w.left + sel.x * sx, ly = r.top - w.top + sel.y * sy;
@@ -652,7 +703,7 @@ maxBtn.onclick = () => {
   else if (cleanWrap.requestFullscreen) cleanWrap.requestFullscreen();
 };
 document.addEventListener('fullscreenchange', () => {
-  maxBtn.textContent = document.fullscreenElement ? '⤢ Exit' : '⛶ Maximize';
+  maxBtn.textContent = document.fullscreenElement ? MSG.m_exit : MSG.maximize;
 });
 
 function say(m, cls) {
@@ -668,7 +719,7 @@ function setPill(txt, cls) { statusPill.textContent = txt; statusPill.className 
 function renderSteps(steps) {
   const icons = {upload:'⭳', select:'◧', remove:'◍', encode:'▣', done:'✔'};
   stepsEl.innerHTML = steps.map(s =>
-    `<div class="step ${s.state}"><span class="dot">${s.state==='done'?'✔':(icons[s.id]||'•')}</span>${s.label}</div>`
+    `<div class="step ${s.state}"><span class="dot">${s.state==='done'?'✔':(icons[s.id]||'•')}</span>${STEPS_T[s.id] || s.label}</div>`
   ).join('');
 }
 function startClock() {
@@ -702,7 +753,7 @@ function showPreview() {
       d.id = 'prevThumb';
       d.style.cssText = 'margin-top:10px;display:flex;gap:12px;align-items:center;background:rgba(12,11,24,.85);border:1px solid rgba(167,139,250,.3);border-radius:12px;padding:9px 13px;animation:rise .4s ease both';
       d.innerHTML = `<img src="${j.url}" style="max-width:190px;max-height:115px;border-radius:9px;border:1px solid rgba(167,139,250,.3)" alt="selected region"/>
-        <div style="font-size:11.5px;color:var(--muted)">About to clean this exact area.<br/>Wrong spot? Just drag again.</div>`;
+        <div style="font-size:11.5px;color:var(--muted)">${MSG.m_prev1}<br/>${MSG.m_prev2}</div>`;
       document.getElementById('selHint').appendChild(d);
     } catch (e) { /* best-effort */ }
   }, 350);
@@ -713,15 +764,15 @@ goBtn.onclick = async () => {
   if (kind === 'video' && mediaEl && !mediaEl.paused) mediaEl.pause();
   goBtn.disabled = true; clearBtn.disabled = true;
   feed.innerHTML=''; shownLogs=0; meta.innerHTML=''; dlBox.style.display='none';
-  startClock(); setPill('WORKING', 'work');
-  say(`Removing region (${Math.round(sel.x)}, ${Math.round(sel.y)}, ${Math.round(sel.w)}x${Math.round(sel.h)})...`);
-  stageText.textContent = 'Working';
+  startClock(); setPill(PILL.working, 'work');
+  say(mf('m_removing', Math.round(sel.x), Math.round(sel.y), Math.round(sel.w), Math.round(sel.h)));
+  stageText.textContent = stg('working');
   const r = await fetch('/api/process/' + jobId, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ box: [sel.x, sel.y, sel.w, sel.h] })
   });
   const j = await r.json();
-  if (j.error) { say('ERROR: ' + j.error, 'err'); stageText.textContent = 'Error'; setPill('ERROR', 'err'); goBtn.disabled = false; stopClock(); return; }
+  if (j.error) { say(mf('m_err') + j.error, 'err'); stageText.textContent = stg('failed'); setPill(PILL.error, 'err'); goBtn.disabled = false; stopClock(); return; }
   timer = setInterval(poll, 600);
 };
 
@@ -730,7 +781,7 @@ async function poll() {
   const j = await r.json();
   fill.style.width = (j.progress||0) + '%';
   if (j.steps) renderSteps(j.steps);
-  stageText.textContent = j.stage + ' · ' + (j.progress||0) + '%';
+  stageText.textContent = stg(j.stage) + ' · ' + (j.progress||0) + '%';
   while (shownLogs < j.logs.length) {
     const line = j.logs[shownLogs].replace(/^\[.*?\]\s*/, '');
     say(line, j.done && !j.error && shownLogs === j.logs.length-1 ? 'ok' : '');
@@ -738,17 +789,17 @@ async function poll() {
   }
   if (j.region) {
     const d = j.region;
-    meta.innerHTML = `<span class="pill">◧ region (${d.x}, ${d.y}, ${d.w}×${d.h})</span>
-      <span class="pill">◍ cleaned <b>${d.masked_px ?? '—'}</b> px</span>
+    meta.innerHTML = `<span class="pill">◧ ${MSG.m_region} (${d.x}, ${d.y}, ${d.w}×${d.h})</span>
+      <span class="pill">◍ ${MSG.m_cleaned} <b>${d.masked_px ?? '—'}</b> px</span>
       <span class="pill">⏱ ${j.elapsed ?? 0}s</span>`;
   }
   if (j.done) {
     clearInterval(timer); stopClock();
     goBtn.disabled = false; clearBtn.disabled = false;
-    if (j.error) { stageText.textContent = 'Failed'; say('ERROR: ' + j.error, 'err'); setPill('ERROR', 'err'); }
+    if (j.error) { stageText.textContent = stg('failed'); say(mf('m_err') + j.error, 'err'); setPill(PILL.error, 'err'); }
     else {
-      stageText.textContent = 'Done';
-      setPill('DONE', 'ok');
+      stageText.textContent = stg('done');
+      setPill(PILL.done, 'ok');
       dlBox.style.display = 'block';
       dlLink.href = '/api/download/' + jobId;
       const viewUrl = '/api/download/' + jobId + '?view=1';
@@ -760,7 +811,7 @@ async function poll() {
         cv.onclick = () => { if (cv.paused) cv.play().catch(() => {}); else cv.pause(); };
       }
       maxBtn.classList.add('on');
-      say('Done — right panel shows the cleaned result.', 'ok');
+      say(mf('m_done'), 'ok');
     }
   }
 }

@@ -1,33 +1,36 @@
 {% extends "base.html" %}
-{% block title %}About — Gemini Watermark Remover{% endblock %}
-{% block desc %}Why Gemini Watermark Remover exists: a free, local, pixel-exact tool for removing the Gemini AI badge from media you own — no clouds, no accounts, no telemetry.{% endblock %}
+{% block title %}{{ t.about.title }}{% endblock %}
+{% block desc %}{{ t.about.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
-{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
-{"@type":"ListItem","position":2,"name":"About","item":"{{ site_url }}/about"}]}
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ (site_url + lang_prefix + '/')|tojson }}},
+{"@type":"ListItem","position":2,"name":{{ t.nav.about|tojson }},"item":{{ self_url|tojson }}}]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / About</p>
-  <span class="tag">WHO BUILT THIS &amp; WHY</span>
-  <h1>About <span>Gemini Watermark Remover</span></h1>
-  <p class="lead">A small, opinionated tool built around a simple promise: remove the watermark you point at, keep everything else exactly as it was, and never send your media anywhere.</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / {{ t.nav.about }}</p>
+  <span class="tag">{{ t.tool.chip4 }}</span>
+  <h1>{{ t.about.h1a }} <span>{{ t.about.h1b }}</span></h1>
+  <p class="lead">{{ t.about.lead }}</p>
 
-  <h2>The three promises</h2>
+  <h2>{{ t.about.prom_t }}</h2>
   <ul>
-    <li><b>You decide what's edited.</b> No automatic detection, no "AI magic" touching your whole frame. You draw the box; only those pixels change — and a preview proves the alignment before anything runs.</li>
-    <li><b>Original quality stays.</b> Photos keep their full resolution. Video is encoded once at visually lossless x264 CRF 17 with original audio — no double compression, no resolution drops.</li>
-    <li><b>Your files stay yours.</b> The engine runs on your computer. No uploads to a cloud, no accounts, no analytics on your media.</li>
+    {% for p in t.about.proms %}
+    <li>{{ p|safe }}</li>
+    {% endfor %}
   </ul>
 
-  <h2>How it's built</h2>
-  <p>Under the hood it's a lightweight local web app: a Python/Flask engine using OpenCV inpainting (Navier–Stokes + Telea fringe pass) with grain matching for natural-looking fills, and FFmpeg's x264 encoder driven in a single streaming pass for video. That's why it's fast — a one-minute 1080p clip usually finishes in seconds to under a minute.</p>
+  <h2>{{ t.about.built_t }}</h2>
+  <p>{{ t.about.built }}</p>
 
-  <h2>What we won't do</h2>
-  <p>We won't claim to remove invisible SynthID signatures (nobody can do that reliably, and we won't pretend otherwise). We won't lock features behind a paywall. And we won't add watermarks or branding to your cleaned output.</p>
+  <h2>{{ t.about.wont_t }}</h2>
+  <p>{{ t.about.wont }}</p>
 
-  <div class="btnrow"><a class="btn primary" href="/#tool">Use the tool free →</a><a class="btn ghost" href="/privacy">Privacy policy</a></div>
+  <div class="btnrow">
+    <a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.about.cta }}</a>
+    <a class="btn ghost" href="{{ lang_prefix }}/privacy">{{ t.about.cta2 }}</a>
+  </div>
 </div>
 {% endblock %}

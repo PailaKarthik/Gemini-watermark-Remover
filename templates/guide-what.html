@@ -1,51 +1,45 @@
 {% extends "base.html" %}
-{% block title %}What Is the Gemini Watermark? (Badge + SynthID Explained){% endblock %}
-{% block desc %}What the Gemini watermark actually is: the visible corner badge Google adds to AI media, how it differs from invisible SynthID, and what a watermark remover can realistically erase.{% endblock %}
+{% block title %}{{ t.gwhat.title }}{% endblock %}
+{% block desc %}{{ t.gwhat.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"Article","headline":"What Is the Gemini Watermark?","datePublished":"2026-01-05","dateModified":"2026-11-13","author":{"@type":"Organization","name":"Gemini Watermark Remover"},"description":"Explainer: the visible Gemini badge vs. invisible SynthID, and what removing each one means."},
+{"@type":"Article","headline":{{ t.gwhat.title|tojson }},"datePublished":"2026-01-05","dateModified":"2026-11-13",
+ "author":{"@type":"Organization","name":{{ t.tool.ld_name|tojson }}},"description":{{ t.gwhat.desc|tojson }}},
 {"@type":"BreadcrumbList","itemListElement":[
-{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
-{"@type":"ListItem","position":2,"name":"Guides","item":"{{ site_url }}/guides"},
-{"@type":"ListItem","position":3,"name":"What is the Gemini watermark?","item":"{{ site_url }}/guides/what-is-the-gemini-watermark"}]}]}
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ (site_url + lang_prefix + '/')|tojson }}},
+{"@type":"ListItem","position":2,"name":{{ t.nav.guides|tojson }},"item":{{ (site_url + lang_prefix + '/guides')|tojson }}},
+{"@type":"ListItem","position":3,"name":{{ t.gwhat.h1b|tojson }},"item":{{ self_url|tojson }}}]}]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / <a href="/guides">Guides</a> / Explainer</p>
-  <span class="tag">EXPLAINER · ~3 MIN READ</span>
-  <h1>What is the <span>Gemini watermark</span>?</h1>
-  <p class="lead">Images and videos generated with Google's Gemini models often arrive with a visible badge stamped in the corner — the "Gemini watermark". Here's what it is, and what removing it does and doesn't mean.</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / <a href="{{ lang_prefix }}/guides">{{ t.nav.guides }}</a> / {{ t.foot.g3 }}</p>
+  <span class="tag">{{ t.tool.chip4 }}</span>
+  <h1>{{ t.gwhat.h1a }} <span>{{ t.gwhat.h1b }}</span></h1>
+  <p class="lead">{{ t.gwhat.lead }}</p>
 
-  <h2>Two different watermarks</h2>
   <div class="grid2">
-    <div class="feat"><span class="ic">👁</span><h3>The visible badge</h3><p>A small semi-transparent sparkle logo + "Gemini" text rendered into the pixels, usually bottom-left or bottom-right. This is what people mean by "the Gemini watermark", and it's what our tool removes.</p></div>
-    <div class="feat"><span class="ic">🔎</span><h3>SynthID (invisible)</h3><p>Google's SynthID embeds a hidden, imperceptible statistical signature into the pixel data itself. It isn't something you can see or crop out, and it's designed to survive edits like re-encoding.</p></div>
+    {% for icon, name, desc in t.gwhat.cards %}
+    <div class="feat"><span class="ic">{{ icon }}</span><h3>{{ name }}</h3><p>{{ desc }}</p></div>
+    {% endfor %}
   </div>
 
-  <h2>What removal can and cannot do</h2>
+  <h2>{{ t.gwhat.can_t }}</h2>
   <ul>
-    <li><b>Can:</b> erase the visible badge with texture-aware inpainting so the corner looks natural again — at original resolution/quality, editing only the pixels you select.</li>
-    <li><b>Cannot (and won't pretend to):</b> strip invisible SynthID. That's a statistical property spread across the whole image, not a corner graphic. No honest tool claims to reliably remove it.</li>
+    {% for c in t.gwhat.cans %}
+    <li>{{ c|safe }}</li>
+    {% endfor %}
   </ul>
 
-  <h2>Why the badge exists</h2>
-  <p>The visible mark helps viewers recognize AI-generated media at a glance. That's a reasonable goal — but when <em>you</em> generated the image for your own project, a permanent corner stamp can be limiting for thumbnails, design work, or video frames where the badge distracts. Removing the badge from media you own and created is a personal-choice use case; our tool exists for exactly that.</p>
+  <p>{{ t.gwhat.why|safe }}</p>
 
-  <h2>Responsible use</h2>
-  <p>Don't use watermark removal to pass off other people's AI content as untouched original work, to evade labeling requirements, or to mislead anyone about a media file's origin. Use it on content you own or have rights to modify. See our <a href="/terms">terms of use</a>.</p>
+  <div class="note">{{ t.gwhat.resp|safe }}</div>
+  <div class="note">{{ t.gwhat.note|safe }}</div>
 
-  <h2>Where the badge typically appears</h2>
-  <table>
-    <thead><tr><th>Media type</th><th>Typical badge position</th><th>Notes</th></tr></thead>
-    <tbody>
-      <tr><td>Gemini-generated images</td><td>Lower area, usually a corner</td><td>Semi-transparent; sits over the image content</td></tr>
-      <tr><td>Gemini-generated video (Veo)</td><td>Lower corner, may drift between shots</td><td>Box its whole travel range when selecting</td></tr>
-      <tr><td>Re-shared / screenshotted media</td><td>Wherever the sharer cropped it</td><td>Manual selection shines here — no detector needed</td></tr>
-    </tbody>
-  </table>
-
-  <div class="btnrow"><a class="btn primary" href="/#tool">Remove your badge now →</a><a class="btn ghost" href="/faq">More questions</a></div>
+  <div class="btnrow">
+    <a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.gwhat.cta }}</a>
+    <a class="btn ghost" href="{{ lang_prefix }}/faq">{{ t.gwhat.cta2 }}</a>
+  </div>
 </div>
 {% endblock %}

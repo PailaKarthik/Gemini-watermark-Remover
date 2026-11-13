@@ -1,70 +1,49 @@
 {% extends "base.html" %}
-{% block title %}How to Remove the Gemini Watermark (Photos &amp; Videos) — 3 Easy Steps{% endblock %}
-{% block desc %}Learn how to remove the Gemini AI watermark from any photo or video in 3 easy steps: upload, drag a box over the watermark, and download the cleaned file — free and 100% local.{% endblock %}
+{% block title %}{{ t.how.title }}{% endblock %}
+{% block desc %}{{ t.how.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "HowTo",
-      "name": "How to remove the Gemini watermark from a photo or video",
-      "description": "Remove the visible Gemini AI watermark from photos and videos in three steps using a free browser-based tool.",
-      "totalTime": "PT1M",
-      "tool": [{"@type": "HowToTool", "name": "Gemini Watermark Remover (free web tool)"}],
-      "step": [
-        {"@type": "HowToStep", "position": 1, "name": "Upload your file",
-         "text": "Drop your photo or video into the remover, or click to browse. The file stays on your own computer the entire time."},
-        {"@type": "HowToStep", "position": 2, "name": "Drag a box over the watermark",
-         "text": "Drag a tight selection box around the visible Gemini watermark. A preview confirms the exact pixels before anything is edited."},
-        {"@type": "HowToStep", "position": 3, "name": "Remove and download",
-         "text": "Press Remove. The tool inpaints only the selected region, matches the surrounding grain, and gives you a download at original quality."}
-      ]
-    },
-    {
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        {"@type": "ListItem", "position": 1, "name": "Home", "item": "{{ site_url }}/"},
-        {"@type": "ListItem", "position": 2, "name": "How it works", "item": "{{ site_url }}/how-it-works"}
-      ]
-    }
-  ]
-}
+{"@context":"https://schema.org","@graph":[
+{"@type":"HowTo","name":{{ t.tool.ld_how|tojson }},"description":{{ t.how.lead|tojson }},"totalTime":"PT1M",
+ "tool":[{"@type":"HowToTool","name":{{ t.tool.ld_name|tojson }}}],
+ "step":[
+{%- for s in t.how.steps %}
+{"@type":"HowToStep","position":{{ loop.index }},"name":{{ s[0]|tojson }},"text":{{ s[1]|tojson }}}{% if not loop.last %},{% endif %}
+{%- endfor %}
+ ]},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ (site_url + lang_prefix + '/')|tojson }}},
+{"@type":"ListItem","position":2,"name":{{ t.nav.how|tojson }},"item":{{ self_url|tojson }}}]}
+]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / How it works</p>
-  <span class="tag">FREE · NO SIGN-UP · 100% LOCAL</span>
-  <h1>How to <span>remove the Gemini watermark</span> in 3 steps</h1>
-  <p class="lead">No accounts, no watermarks-on-your-watermark, no cloud uploads. The whole job — from upload to download — happens on your own machine and usually takes under a minute.</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / {{ t.nav.how }}</p>
+  <span class="tag">{{ t.tool.chip4 }} · {{ t.tool.chip1 }}</span>
+  <h1>{{ t.how.h1a }} <span>{{ t.how.h1b }}</span> {{ t.how.h1c }}</h1>
+  <p class="lead">{{ t.how.lead }}</p>
 
   <ol class="steps-list">
+    {% for s in t.how.steps %}
     <li>
-      <h3>Upload your photo or video</h3>
-      <p>Drag the file into the remover or click the drop zone to browse. PNG, JPG, WebP, MP4, MOV and WebM are supported. Nothing is sent to a server — the file is processed by a small engine running on your own computer.</p>
+      <h3>{{ s[0] }}</h3>
+      <p>{{ s[1] }}</p>
     </li>
-    <li>
-      <h3>Drag a box over the Gemini watermark</h3>
-      <p>The badge sits in a corner — usually bottom-left or bottom-right. Drag a tight selection box around it. You can scrub a video to any frame first, and a preview thumbnail confirms the <em>exact</em> pixels you're about to clean before anything happens.</p>
-    </li>
-    <li>
-      <h3>Press Remove, then download</h3>
-      <p>Only the pixels inside your box are edited — the rest of the image or every other frame of the video passes through untouched. Photos save at their original resolution; videos are re-encoded once at visually lossless quality with the original audio. Then just hit download.</p>
-    </li>
+    {% endfor %}
   </ol>
 
   <div class="card">
-    <h2 style="margin-top:0">Why drag-and-select instead of automatic detection?</h2>
-    <p>Automatic "one-click" removers guess where the watermark is — and guess wrong on busy backgrounds, cropped screenshots, or unusual badge positions. When they fail they either leave half a watermark behind or blur a chunk of your actual content.</p>
-    <p>Manual selection gives you full control: you draw the box exactly where the badge is, see a pixel-exact preview, and can redraw as many times as you like before committing. It's faster in practice because there's no waiting for a detection model — the removal starts the moment you press the button.</p>
+    <h2 style="margin-top:0">{{ t.how.why_t }}</h2>
+    <p>{{ t.how.why1 }}</p>
+    <p>{{ t.how.why2 }}</p>
   </div>
 
-  <div class="note"><b>Good to know:</b> the remover erases the <i>visible</i> Gemini badge. Google's invisible SynthID metadata may still exist in the file — this tool doesn't add or remove hidden signatures.</div>
+  <div class="note">{{ t.how.note|safe }}</div>
 
   <div class="btnrow">
-    <a class="btn primary" href="/#tool">Remove a watermark now →</a>
-    <a class="btn ghost" href="/features">See all features</a>
+    <a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.how.cta }}</a>
+    <a class="btn ghost" href="{{ lang_prefix }}/features">{{ t.how.cta2 }}</a>
   </div>
 </div>
 {% endblock %}

@@ -1,49 +1,44 @@
 {% extends "base.html" %}
-{% block title %}How to Remove the Gemini Watermark from Videos (Free, 2026 Guide){% endblock %}
-{% block desc %}Remove the Gemini AI watermark from video clips free — one box over the badge, cleaned across every frame at visually lossless quality with the original audio kept.{% endblock %}
+{% block title %}{{ t.gvideo.title }}{% endblock %}
+{% block desc %}{{ t.gvideo.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"Article","headline":"How to Remove the Gemini Watermark from Videos (Free)","datePublished":"2026-01-05","dateModified":"2026-11-13","author":{"@type":"Organization","name":"Gemini Watermark Remover"},"description":"Step-by-step guide to removing the Gemini AI watermark from videos for free, in one pass, keeping audio and quality."},
+{"@type":"Article","headline":{{ t.gvideo.title|tojson }},"datePublished":"2026-01-05","dateModified":"2026-11-13",
+ "author":{"@type":"Organization","name":{{ t.tool.ld_name|tojson }}},"description":{{ t.gvideo.desc|tojson }}},
 {"@type":"BreadcrumbList","itemListElement":[
-{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
-{"@type":"ListItem","position":2,"name":"Guides","item":"{{ site_url }}/guides"},
-{"@type":"ListItem","position":3,"name":"Remove Gemini watermark from videos","item":"{{ site_url }}/guides/remove-gemini-watermark-from-videos"}]}]}
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ (site_url + lang_prefix + '/')|tojson }}},
+{"@type":"ListItem","position":2,"name":{{ t.nav.guides|tojson }},"item":{{ (site_url + lang_prefix + '/guides')|tojson }}},
+{"@type":"ListItem","position":3,"name":{{ t.gvideo.h1b|tojson }},"item":{{ self_url|tojson }}}]}]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / <a href="/guides">Guides</a> / Videos</p>
-  <span class="tag">VIDEO GUIDE · ~2 MIN READ</span>
-  <h1>How to remove the <span>Gemini watermark from videos</span></h1>
-  <p class="lead">Video is the impressive part: you box the badge <strong>once</strong>, and the tool cleans it across <strong>every frame</strong> of the whole clip in a single pass — original audio included.</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / <a href="{{ lang_prefix }}/guides">{{ t.nav.guides }}</a> / {{ t.foot.g2 }}</p>
+  <span class="tag">{{ t.tool.chip2 }} · {{ t.tool.chip4 }}</span>
+  <h1>{{ t.gvideo.h1a }} <span>{{ t.gvideo.h1b }}</span></h1>
+  <p class="lead">{{ t.gvideo.lead|safe }}</p>
+  <p>{{ t.gvideo.intro }}</p>
 
-  <h2>How it works under the hood</h2>
-  <p>The tool samples several frames spread across the clip (start, middle, end, quarters), builds a tight pixel mask of the badge from each, and unions them. That combined mask is applied to every frame — so it stays rock-steady with no flicker, even where the background changes behind the badge. Frames stream directly into the x264 encoder, which means one encode, no intermediate files, and typical speeds around real-time for 1080p clips.</p>
-
-  <h2>Step-by-step</h2>
+  <h2>{{ t.nav.how }}</h2>
   <ol class="steps-list">
-    <li><h3>Load your video</h3><p>MP4, MOV, M4V, WebM, MKV or AVI. Use the scrub bar below the frame to move through the clip. Tap the video to play/pause.</p></li>
-    <li><h3>Pause on a frame where the badge is sharp</h3><p>Pick a moment with good contrast around the watermark — not motion-blurred — so the mask locks onto the badge cleanly.</p></li>
-    <li><h3>Drag a box around the badge</h3><p>A preview crop from the middle of the video shows exactly what's selected. Because the badge may drift slightly between scenes, box generously: cover the badge in <em>all</em> its positions plus a few pixels of margin.</p></li>
-    <li><h3>Press Remove and wait one pass</h3><p>Every frame is cleaned and encoded at x264 CRF 17 — visually lossless — at the same resolution and FPS as the source, with the original audio track copied through.</p></li>
-    <li><h3>Preview and download</h3><p>Check the result in the right panel (tap to play, or hit Maximize for fullscreen), then download the MP4.</p></li>
+    {% for s in t.gvideo.steps %}
+    <li><h3>{{ s[0] }}</h3><p>{{ s[1] }}</p></li>
+    {% endfor %}
   </ol>
 
-  <h2>Good to know</h2>
+  <h2>{{ t.gvideo.qa_t }}</h2>
   <table>
-    <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+    <thead><tr><th>?</th><th>—</th></tr></thead>
     <tbody>
-      <tr><td>Does the mask flicker?</td><td>No — one union mask is used for all frames, so the cleaned area never "breathes".</td></tr>
-      <tr><td>Is the audio kept?</td><td>Yes, the original audio track is copied into the output MP4.</td></tr>
-      <tr><td>Is the video resized?</td><td>Never — output matches the source resolution and frame rate exactly.</td></tr>
-      <tr><td>How fast?</td><td>Single-pass streaming encode; a short 1080p clip typically finishes in seconds to under a minute.</td></tr>
-      <tr><td>Badge moves a lot?</td><td>Draw a box that covers its whole travel range — the tool fills everything inside the box each frame.</td></tr>
+      {% for q, a in t.gvideo.qa %}
+      <tr><td>{{ q }}</td><td>{{ a }}</td></tr>
+      {% endfor %}
     </tbody>
   </table>
 
-  <div class="note"><b>Note:</b> the visible badge is removed; invisible SynthID may remain.</div>
+  <div class="note">{{ t.gvideo.note|safe }}</div>
 
-  <div class="btnrow"><a class="btn primary" href="/#tool">Remove a video watermark now →</a></div>
+  <div class="btnrow"><a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.gvideo.cta }}</a></div>
 </div>
 {% endblock %}

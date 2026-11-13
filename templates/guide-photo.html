@@ -1,47 +1,43 @@
 {% extends "base.html" %}
-{% block title %}How to Remove the Gemini Watermark from Photos (Free, 2026 Guide){% endblock %}
-{% block desc %}Remove the Gemini AI watermark from any photo in under a minute — free, at original resolution, with a pixel-exact preview before anything is edited. Step-by-step guide.{% endblock %}
+{% block title %}{{ t.gphoto.title }}{% endblock %}
+{% block desc %}{{ t.gphoto.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"Article","headline":"How to Remove the Gemini Watermark from Photos (Free)","datePublished":"2026-01-05","dateModified":"2026-11-13","author":{"@type":"Organization","name":"Gemini Watermark Remover"},"description":"Step-by-step guide to removing the Gemini AI watermark from photos for free, at original resolution."},
+{"@type":"Article","headline":{{ t.gphoto.title|tojson }},"datePublished":"2026-01-05","dateModified":"2026-11-13",
+ "author":{"@type":"Organization","name":{{ t.tool.ld_name|tojson }}},"description":{{ t.gphoto.desc|tojson }}},
 {"@type":"BreadcrumbList","itemListElement":[
-{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
-{"@type":"ListItem","position":2,"name":"Guides","item":"{{ site_url }}/guides"},
-{"@type":"ListItem","position":3,"name":"Remove Gemini watermark from photos","item":"{{ site_url }}/guides/remove-gemini-watermark-from-photos"}]}]}
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ (site_url + lang_prefix + '/')|tojson }}},
+{"@type":"ListItem","position":2,"name":{{ t.nav.guides|tojson }},"item":{{ (site_url + lang_prefix + '/guides')|tojson }}},
+{"@type":"ListItem","position":3,"name":{{ t.gphoto.h1b|tojson }},"item":{{ self_url|tojson }}}]}]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / <a href="/guides">Guides</a> / Photos</p>
-  <span class="tag">PHOTO GUIDE · ~1 MIN READ</span>
-  <h1>How to remove the <span>Gemini watermark from photos</span></h1>
-  <p class="lead">The Gemini badge on AI-generated images sits in the lower area of the frame. Here's how to erase it cleanly — at original resolution, without blurring your image, free.</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / <a href="{{ lang_prefix }}/guides">{{ t.nav.guides }}</a> / {{ t.foot.g1 }}</p>
+  <span class="tag">{{ t.tool.chip1 }} · {{ t.tool.chip4 }}</span>
+  <h1>{{ t.gphoto.h1a }} <span>{{ t.gphoto.h1b }}</span></h1>
+  <p class="lead">{{ t.gphoto.lead }}</p>
 
-  <h2>What you need</h2>
-  <ul>
-    <li>The photo (PNG, JPG, WebP, BMP or TIFF) on your computer</li>
-    <li>The free <a href="/">Gemini Watermark Remover</a> — no install beyond the local app, no account</li>
-  </ul>
+  <h2>{{ t.gphoto.need_t }}</h2>
+  <p>{{ t.gphoto.need|safe }}</p>
 
-  <h2>Step-by-step</h2>
+  <h2>{{ t.nav.how }}</h2>
   <ol class="steps-list">
-    <li><h3>Open the tool and drop your photo</h3><p>Drag the image onto the drop zone or click to browse. It appears instantly in the left panel — it never leaves your machine.</p></li>
-    <li><h3>Drag a tight box over the badge</h3><p>Zoom mentally into the watermark and draw a box that hugs it — slightly larger than the badge itself, but not a huge rectangle. A pixel-exact preview appears so you can verify you've got the right spot.</p></li>
-    <li><h3>Check the preview, then press Remove</h3><p>Wrong spot? Just drag again — the preview updates every time. When it's right, press Remove. The tool builds a pixel-tight mask, inpaints the region, and matches the surrounding grain.</p></li>
-    <li><h3>Download at original resolution</h3><p>The cleaned image saves at the same pixel dimensions as the original, quality 100. Only the pixels inside your box differ from the source.</p></li>
+    {% for s in t.gphoto.steps %}
+    <li><h3>{{ s[0] }}</h3><p>{{ s[1] }}</p></li>
+    {% endfor %}
   </ol>
 
-  <h2>Tips for the cleanest result</h2>
+  <h2>{{ t.gphoto.tips_t }}</h2>
   <ul>
-    <li><b>Box tight, not huge.</b> A snug box means the inpainting has more surrounding detail to learn from, and less area to fill.</li>
-    <li><b>Include the full badge plus 2–4px of margin.</b> Cutting it too close can leave a faint outline; too wide wastes background.</li>
-    <li><b>Busy backgrounds are fine.</b> The fill follows local texture — grass, skin, fabric and gradients all reconstruct believably.</li>
-    <li><b>Flat backgrounds are easiest.</b> On solid or gradient areas the fill is essentially invisible.</li>
+    {% for tip in t.gphoto.tips %}
+    <li>{{ tip|safe }}</li>
+    {% endfor %}
   </ul>
 
-  <div class="note"><b>Note:</b> this removes the visible badge only. Invisible SynthID signatures may remain in the file.</div>
+  <div class="note">{{ t.gphoto.note|safe }}</div>
 
-  <div class="btnrow"><a class="btn primary" href="/#tool">Remove a photo watermark now →</a></div>
+  <div class="btnrow"><a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.gphoto.cta }}</a></div>
 </div>
 {% endblock %}

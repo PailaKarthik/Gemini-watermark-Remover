@@ -1,57 +1,30 @@
 {% extends "base.html" %}
-{% block title %}FAQ — Gemini Watermark Remover Questions Answered{% endblock %}
-{% block desc %}Answers to common questions about removing the Gemini AI watermark: is it free, is it safe, what quality do you get, does it work on videos, and what about SynthID?{% endblock %}
+{% block title %}{{ t.faq.title }}{% endblock %}
+{% block desc %}{{ t.faq.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Is this Gemini watermark remover really free?","acceptedAnswer":{"@type":"Answer","text":"Yes — completely free with no accounts, no limits and no watermark on your output. It runs locally on your own computer."}},
-{"@type":"Question","name":"Will removing the watermark reduce my image or video quality?","acceptedAnswer":{"@type":"Answer","text":"Photos are saved at their original resolution at quality 100. Videos are encoded once with x264 at CRF 17 (visually lossless), keeping the original resolution, frame rate and audio track. Pixels outside your selection are untouched."}},
-{"@type":"Question","name":"Can I remove the Gemini watermark from a video?","acceptedAnswer":{"@type":"Answer","text":"Yes. Scrub to a frame where the badge is sharp, drag a box around it, and the same pixel-tight mask is applied to every frame of the whole video in a single encode pass."}},
-{"@type":"Question","name":"Why do I have to draw a box instead of the tool finding the watermark?","acceptedAnswer":{"@type":"Answer","text":"Manual selection is deliberate: automatic detectors guess, and wrong guesses blur real content or leave fragments behind. Drawing the box takes two seconds and guarantees only the pixels you choose are edited, with a preview to confirm alignment first."}},
-{"@type":"Question","name":"Does the tool remove Google's invisible SynthID?","acceptedAnswer":{"@type":"Answer","text":"No. The tool removes the visible Gemini badge only. Invisible SynthID watermarks embedded in the pixel data or metadata may remain, and this tool does not add, remove or alter hidden signatures."}},
-{"@type":"Question","name":"Where do my files go when I upload them?","acceptedAnswer":{"@type":"Answer","text":"Nowhere. The application runs on your own machine and processes files locally. Nothing is sent to any external server, and you can delete the local uploads and outputs folders at any time."}},
-{"@type":"Question","name":"Which file formats are supported?","acceptedAnswer":{"@type":"Answer","text":"Images: PNG, JPG/JPEG, WebP, BMP, TIFF. Videos: MP4, MOV, M4V, WebM, MKV, AVI. Output is the same format as the input (video is delivered as MP4/H.264)."}},
-{"@type":"Question","name":"Is it legal to remove a Gemini watermark?","acceptedAnswer":{"@type":"Answer","text":"Only use it on content you own or have permission to modify — for example your own AI-generated images that carry the badge. Removing watermarks from other people's content to mislead about its origin may violate their terms and local law."}}
+{%- for q, a in t.faq.faqs %}
+{"@type":"Question","name":{{ q|tojson }},"acceptedAnswer":{"@type":"Answer","text":{{ a|tojson }}}}{% if not loop.last %},{% endif %}
+{%- endfor %}
 ]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / FAQ</p>
-  <span class="tag">QUICK ANSWERS</span>
-  <h1>Frequently asked <span>questions</span></h1>
-  <p class="lead">Everything people ask about removing the Gemini watermark — pricing, quality, privacy, videos, and legality.</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / {{ t.nav.faq }}</p>
+  <span class="tag">{{ t.tool.chip4 }}</span>
+  <h1>{{ t.faq.h1a }} <span>{{ t.faq.h1b }}</span></h1>
+  <p class="lead">{{ t.faq.lead }}</p>
 
-  <details open><summary>Is this Gemini watermark remover really free?</summary>
-    <p>Yes — completely free with no accounts, no usage limits, and no watermark stamped on your output. It runs locally on your own computer, so there are no server costs to pass on to you.</p></details>
-
-  <details><summary>Will removing the watermark reduce my image or video quality?</summary>
-    <p>Photos are saved at their original resolution at quality 100. Videos are encoded a single time with x264 at CRF 17 — visually lossless — keeping the original resolution, frame rate, and audio track. And every pixel outside your selection box is passed through untouched.</p></details>
-
-  <details><summary>Can I remove the Gemini watermark from a video?</summary>
-    <p>Yes. Load the video, scrub to a frame where the badge is sharp, and drag a box around it. The tool samples several frames, builds a combined pixel-tight mask so the badge is covered through background changes, and applies it to every frame in one fast encode pass — so there's no flicker where the mask "breathes".</p></details>
-
-  <details><summary>Why do I have to draw a box instead of the tool finding the watermark?</summary>
-    <p>Manual selection is a deliberate design choice. Automatic detectors guess, and wrong guesses either leave watermark fragments behind or blur real content. Drawing the box takes two seconds, guarantees only the pixels you choose are edited, and a preview crop lets you verify alignment before anything is processed.</p></details>
-
-  <details><summary>Does the tool remove Google's invisible SynthID?</summary>
-    <p>No. The remover erases the <em>visible</em> Gemini badge. Invisible SynthID signatures embedded by Google's models may remain in the file. This tool does not add, remove, or alter any hidden watermarking.</p></details>
-
-  <details><summary>Where do my files go when I upload them?</summary>
-    <p>Nowhere. This is a local application: the web page talks to a small engine running on your own computer. Files land in local <span class="kbd">uploads</span> and <span class="kbd">outputs</span> folders that you control and can empty at any time.</p></details>
-
-  <details><summary>Which file formats are supported?</summary>
-    <p>Images: PNG, JPG/JPEG, WebP, BMP, TIFF. Videos: MP4, MOV, M4V, WebM, MKV, AVI. The cleaned photo comes back in its original format; cleaned video is delivered as MP4 (H.264 + AAC).</p></details>
-
-  <details><summary>My watermark isn't in the corner. Does that matter?</summary>
-    <p>No — you can draw a box anywhere on the frame, at any size. The badge on Gemini images usually sits in the bottom area, but the tool doesn't care where your selection is.</p></details>
-
-  <details><summary>Is it legal to remove a Gemini watermark?</summary>
-    <p>Use it only on content you own or have rights to modify — for example, your own AI-generated images that carry the badge. Removing watermarks from other people's content in order to misrepresent its origin may violate their terms of service and local law. Please use the tool responsibly.</p></details>
+  {% for q, a in t.faq.faqs %}
+  <details{% if loop.first %} open{% endif %}><summary>{{ q }}</summary>
+    <p>{{ a }}</p></details>
+  {% endfor %}
 
   <div class="btnrow">
-    <a class="btn primary" href="/#tool">Open the remover →</a>
-    <a class="btn ghost" href="/how-it-works">Read the how-to</a>
+    <a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.faq.cta }}</a>
+    <a class="btn ghost" href="{{ lang_prefix }}/how-it-works">{{ t.faq.cta2 }}</a>
   </div>
 </div>
 {% endblock %}

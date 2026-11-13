@@ -1,35 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Terms of Use — Gemini Watermark Remover{% endblock %}
-{% block desc %}Terms of use for Gemini Watermark Remover: use it only on content you own or have rights to modify; no warranty; software provided as-is.{% endblock %}
+{% block title %}{{ t.terms.title }}{% endblock %}
+{% block desc %}{{ t.terms.desc }}{% endblock %}
 {% block head %}
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[
-{"@type":"ListItem","position":1,"name":"Home","item":"{{ site_url }}/"},
-{"@type":"ListItem","position":2,"name":"Terms of use","item":"{{ site_url }}/terms"}]}
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ (site_url + lang_prefix + '/')|tojson }}},
+{"@type":"ListItem","position":2,"name":{{ t.nav.terms|tojson }},"item":{{ self_url|tojson }}}]}
 </script>
 {% endblock %}
 {% block content %}
 <div class="page">
-  <p class="crumb"><a href="/">Home</a> / Terms of use</p>
-  <span class="tag">PLAIN LANGUAGE</span>
-  <h1>Terms of <span>use</span></h1>
-  <p class="lead">By using this tool you agree to the following, in plain language:</p>
+  <p class="crumb"><a href="{{ lang_prefix }}/">{{ t.nav.home }}</a> / {{ t.nav.terms }}</p>
+  <span class="tag">{{ t.tool.chip4 }}</span>
+  <h1>{{ t.terms.h1a }} <span>{{ t.terms.h1b }}</span></h1>
+  <p class="lead">{{ t.terms.lead }}</p>
 
-  <h2>1. Permitted use</h2>
-  <p>You may use the tool to remove the visible Gemini badge from <b>media you own or have rights to modify</b> — for example, images and videos you generated yourself. You may not use it to misrepresent the origin of media you don't have rights to, to evade platform labeling requirements, or to infringe anyone's rights.</p>
+  {% for s in t.terms.secs %}
+  <h2>{{ s[0] }}</h2>
+  <p>{{ s[1] }}</p>
+  {% endfor %}
 
-  <h2>2. No warranty</h2>
-  <p>The tool is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability and fitness for a particular purpose. Results depend on the input media; always keep your original files.</p>
-
-  <h2>3. Limitation of liability</h2>
-  <p>In no event shall the authors be liable for any claim, damages, or other liability arising from, out of, or in connection with the software or its use.</p>
-
-  <h2>4. Not affiliated with Google</h2>
-  <p>This tool is an independent utility and is not affiliated with, endorsed by, or sponsored by Google. "Gemini" and "SynthID" are trademarks of their respective owner and are used here only for identification.</p>
-
-  <h2>5. SynthID disclaimer</h2>
-  <p>The tool removes the <i>visible</i> badge only. Invisible SynthID watermarks may persist in processed media. Nothing in this tool adds, removes, or alters hidden signatures.</p>
-
-  <p class="bye">Last updated: November 2026.</p>
+  <p class="bye">{{ t.terms.updated }}</p>
 </div>
 {% endblock %}

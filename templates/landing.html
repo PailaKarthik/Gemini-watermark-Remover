@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ t.home.title }}{% endblock %}
+{% block desc %}{{ t.home.desc }}{% endblock %}
+{% block head %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"WebApplication","name":{{ t.tool.ld_name|tojson }},"url":{{ self_url|tojson }},
+ "applicationCategory":"MultimediaApplication","operatingSystem":"Any (web browser)",
+ "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":{{ t.tool.ld_desc|tojson }}},
+{"@type":"HowTo","name":{{ t.tool.ld_how|tojson }},"totalTime":"PT1M","step":[
+{"@type":"HowToStep","position":1,"name":{{ t.tool.ld_s1n|tojson }},"text":{{ t.tool.ld_s1t|tojson }}},
+{"@type":"HowToStep","position":2,"name":{{ t.tool.ld_s2n|tojson }},"text":{{ t.tool.ld_s2t|tojson }}},
+{"@type":"HowToStep","position":3,"name":{{ t.tool.ld_s3n|tojson }},"text":{{ t.tool.ld_s3t|tojson }}}]},
+{"@type":"FAQPage","mainEntity":[
+{%- for q, a in t.home.faqs %}
+{"@type":"Question","name":{{ q|tojson }},"acceptedAnswer":{"@type":"Answer","text":{{ a|tojson }}}}{% if not loop.last %},{% endif %}
+{%- endfor %}
+]},
+{"@type":"BreadcrumbList","itemListElement":[
+{"@type":"ListItem","position":1,"name":{{ t.nav.home|tojson }},"item":{{ self_url|tojson }}}]}
+]}
+</script>
+{% endblock %}
+{% block content %}
+<div class="page wide">
+  <span class="tag">{{ t.tool.chip4 }} · {{ t.tool.chip1 }}</span>
+  <h1>{{ t.home.h1a }} <span>{{ t.home.h1b }}</span></h1>
+  <p class="lead">{{ t.home.lead }}</p>
+  <div class="btnrow">
+    <a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.home.cta }}</a>
+    <a class="btn ghost" href="{{ lang_prefix }}/how-it-works">{{ t.home.cta2 }}</a>
+  </div>
+
+  <h2>{{ t.home.how_h2 }}</h2>
+  <ol class="steps-list">
+    <li><p>{{ t.home.s1|safe }}</p></li>
+    <li><p>{{ t.home.s2|safe }}</p></li>
+    <li><p>{{ t.home.s3|safe }}</p></li>
+  </ol>
+  <p class="more"><a href="{{ lang_prefix }}/how-it-works">{{ t.home.more_how }}</a></p>
+
+  <h2>{{ t.home.feat_h2 }}</h2>
+  <div class="grid2">
+    {% for icon, name, desc in t.home.feats %}
+    <div class="feat"><span class="ic">{{ icon }}</span><h3>{{ name }}</h3><p>{{ desc }}</p></div>
+    {% endfor %}
+  </div>
+  <p class="more"><a href="{{ lang_prefix }}/features">{{ t.home.more_feat }}</a></p>
+
+  <h2>{{ t.home.faq_h2 }}</h2>
+  {% for q, a in t.home.faqs %}
+  <details{% if loop.first %} open{% endif %}><summary>{{ q }}</summary><p>{{ a }}</p></details>
+  {% endfor %}
+
+  <div class="card">
+    <h2 style="margin-top:0">{{ t.tool.ws }} — {{ t.foot.l_remover }}</h2>
+    <p>{{ t.home.lead }}</p>
+    <div class="btnrow">
+      <a class="btn primary" href="{{ lang_prefix }}/remover">{{ t.home.cta }}</a>
+      <a class="btn ghost" href="{{ lang_prefix }}/faq">{{ t.nav.faq }}</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

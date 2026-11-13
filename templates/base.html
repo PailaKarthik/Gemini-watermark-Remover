@@ -1,20 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>{% block title %}Gemini Watermark Remover — Free AI Watermark Remover for Photos &amp; Videos{% endblock %}</title>
-<meta name="description" content="{% block desc %}Free online Gemini watermark remover. Remove the Gemini AI watermark from photos and videos in seconds — 100% in your browser, original quality kept, nothing uploaded to any cloud.{% endblock %}"/>
-<meta name="keywords" content="gemini watermark remover, remove gemini watermark, gemini ai watermark, ai watermark remover, remove watermark from video, remove watermark from photo, free watermark remover"/>
+<title>{% block title %}{{ t.tool.title }}{% endblock %}</title>
+<meta name="description" content="{% block desc %}{{ t.tool.desc }}{% endblock %}"/>
+<meta name="keywords" content="{% block kw %}{{ t.tool.kw }}{% endblock %}"/>
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1"/>
 <meta name="theme-color" content="#0a0a12"/>
-<link rel="canonical" href="{{ site_url }}{{ request.path }}"/>
+<link rel="canonical" href="{{ self_url }}"/>
+{% for code, url in alt.items() %}
+<link rel="alternate" hreflang="{{ code }}" href="{{ url }}"/>
+{% endfor %}
+<link rel="alternate" hreflang="x-default" href="{{ site_url }}/"/>
 <meta property="og:type" content="website"/>
-<meta property="og:site_name" content="Gemini Watermark Remover"/>
+<meta property="og:site_name" content="{{ t.tool.ld_name }}"/>
 <meta property="og:title" content="{% block ogtitle %}{{ self.title() }}{% endblock %}"/>
 <meta property="og:description" content="{% block ogdesc %}{{ self.desc() }}{% endblock %}"/>
-<meta property="og:url" content="{{ site_url }}{{ request.path }}"/>
-<meta property="og:locale" content="en_US"/>
+<meta property="og:url" content="{{ self_url }}"/>
+<meta property="og:locale" content="{{ {'en':'en_US','es':'es_ES','de':'de_DE','fr':'fr_FR','it':'it_IT','pt':'pt_PT','nl':'nl_NL','pl':'pl_PL'}[lang] }}"/>
+{% for code, url in alt.items() %}
+<meta property="og:locale:alternate" content="{{ {'en':'en_US','es':'es_ES','de':'de_DE','fr':'fr_FR','it':'it_IT','pt':'pt_PT','nl':'nl_NL','pl':'pl_PL'}[code] }}"/>
+{% endfor %}
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="{{ self.ogtitle() }}"/>
 <meta name="twitter:description" content="{{ self.ogdesc() }}"/>
@@ -23,20 +30,44 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}"/>
+<style>
+.langsel{margin-left:auto;display:flex;align-items:center;gap:8px}
+.langsel label{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted)}
+.langsel select{background:rgba(19,17,32,.9);color:var(--ink);border:1px solid var(--line);
+  border-radius:99px;padding:7px 12px;font-family:'Sora',sans-serif;font-size:12.5px;font-weight:600;
+  cursor:pointer;outline:none}
+.langsel select:hover,.langsel select:focus{border-color:rgba(167,139,250,.5)}
+@media(max-width:760px){.langsel label{display:none}.langsel{margin-left:auto}}
+</style>
 {% block head %}{% endblock %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebApplication","name":{{ t.tool.ld_name|tojson }},
+ "url":{{ self_url|tojson }},"applicationCategory":"MultimediaApplication",
+ "operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript",
+ "offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":{{ t.tool.ld_desc|tojson }}}
+</script>
 </head>
 <body>
 <header class="site-head">
   <nav aria-label="Main navigation">
-    <a class="logo" href="{{ url_for('index') }}">✦ <b>Gemini&nbsp;Watermark&nbsp;Remover</b></a>
+    <a class="logo" href="{{ lang_prefix }}/">✦ <b>{{ t.foot.brand }}</b></a>
     <ul>
-      <li><a href="{{ url_for('how_it_works') }}" {% if request.path == '/how-it-works' %}aria-current="page"{% endif %}>How it works</a></li>
-      <li><a href="{{ url_for('features') }}" {% if request.path == '/features' %}aria-current="page"{% endif %}>Features</a></li>
-      <li><a href="{{ url_for('guides') }}" {% if request.path.startswith('/guides') %}aria-current="page"{% endif %}>Guides</a></li>
-      <li><a href="{{ url_for('faq') }}" {% if request.path == '/faq' %}aria-current="page"{% endif %}>FAQ</a></li>
-      <li><a href="{{ url_for('about') }}" {% if request.path == '/about' %}aria-current="page"{% endif %}>About</a></li>
+      <li><a href="{{ lang_prefix }}/remover" {% if request.path.endswith('/remover') %}aria-current="page"{% endif %}>{{ t.nav.remover }}</a></li>
+      <li><a href="{{ lang_prefix }}/how-it-works" {% if request.path.endswith('/how-it-works') %}aria-current="page"{% endif %}>{{ t.nav.how }}</a></li>
+      <li><a href="{{ lang_prefix }}/features" {% if request.path.endswith('/features') %}aria-current="page"{% endif %}>{{ t.nav.features }}</a></li>
+      <li><a href="{{ lang_prefix }}/guides" {% if '/guides' in request.path %}aria-current="page"{% endif %}>{{ t.nav.guides }}</a></li>
+      <li><a href="{{ lang_prefix }}/faq" {% if request.path.endswith('/faq') %}aria-current="page"{% endif %}>{{ t.nav.faq }}</a></li>
+      <li><a href="{{ lang_prefix }}/about" {% if request.path.endswith('/about') %}aria-current="page"{% endif %}>{{ t.nav.about }}</a></li>
     </ul>
-    <a class="cta" href="{{ url_for('index') }}#tool">Open the remover →</a>
+    <span class="langsel">
+      <label for="langpick">{{ t.nav.lang }}</label>
+      <select id="langpick" onchange="if(this.value)location.href=this.value">
+        {% for l in langs %}
+        <option value="{{ alt[l] }}"{% if l == lang %} selected{% endif %}>{{ meta_l[l][1] }} {{ meta_l[l][0] }}</option>
+        {% endfor %}
+      </select>
+    </span>
+    <a class="cta" href="{{ lang_prefix }}/remover">{{ t.nav.cta }}</a>
   </nav>
 </header>
 
@@ -47,37 +78,37 @@
 <footer class="site-foot">
   <div class="in">
     <div>
-      <h4>Gemini Watermark Remover</h4>
-      <p class="about-txt">A free, 100%-local tool that removes the Gemini AI watermark from photos and videos. You choose the exact region — only those pixels are edited, everything else stays original.</p>
+      <h4>{{ t.foot.brand }}</h4>
+      <p class="about-txt">{{ t.foot.about_txt }}</p>
     </div>
     <div>
-      <h4>Tool</h4>
+      <h4>{{ t.foot.t_tool }}</h4>
       <ul>
-        <li><a href="{{ url_for('index') }}#tool">Watermark remover</a></li>
-        <li><a href="{{ url_for('how_it_works') }}">How it works</a></li>
-        <li><a href="{{ url_for('features') }}">Features</a></li>
-        <li><a href="{{ url_for('faq') }}">FAQ</a></li>
+        <li><a href="{{ lang_prefix }}/remover">{{ t.foot.l_remover }}</a></li>
+        <li><a href="{{ lang_prefix }}/how-it-works">{{ t.nav.how }}</a></li>
+        <li><a href="{{ lang_prefix }}/features">{{ t.nav.features }}</a></li>
+        <li><a href="{{ lang_prefix }}/faq">{{ t.nav.faq }}</a></li>
       </ul>
     </div>
     <div>
-      <h4>Guides</h4>
+      <h4>{{ t.foot.t_guides }}</h4>
       <ul>
-        <li><a href="{{ url_for('guide_photo') }}">Remove watermark from photos</a></li>
-        <li><a href="{{ url_for('guide_video') }}">Remove watermark from videos</a></li>
-        <li><a href="{{ url_for('guide_what') }}">What is the Gemini watermark?</a></li>
+        <li><a href="{{ lang_prefix }}/guides/remove-gemini-watermark-from-photos">{{ t.foot.g1 }}</a></li>
+        <li><a href="{{ lang_prefix }}/guides/remove-gemini-watermark-from-videos">{{ t.foot.g2 }}</a></li>
+        <li><a href="{{ lang_prefix }}/guides/what-is-the-gemini-watermark">{{ t.foot.g3 }}</a></li>
       </ul>
     </div>
     <div>
-      <h4>Company</h4>
+      <h4>{{ t.foot.t_legal }}</h4>
       <ul>
-        <li><a href="{{ url_for('about') }}">About</a></li>
-        <li><a href="{{ url_for('privacy') }}">Privacy policy</a></li>
-        <li><a href="{{ url_for('terms') }}">Terms of use</a></li>
-        <li><a href="{{ url_for('sitemap_xml') }}">Sitemap</a></li>
+        <li><a href="{{ lang_prefix }}/about">{{ t.nav.about }}</a></li>
+        <li><a href="{{ lang_prefix }}/privacy">{{ t.nav.privacy }}</a></li>
+        <li><a href="{{ lang_prefix }}/terms">{{ t.nav.terms }}</a></li>
+        <li><a href="/sitemap.xml">Sitemap</a></li>
       </ul>
     </div>
   </div>
-  <div class="legal">© {{ year }} Gemini Watermark Remover · Runs 100% locally · Use only on content you own or have rights to.</div>
+  <div class="legal">{{ t.foot.legal_line }}</div>
 </footer>
 </body>
 </html>

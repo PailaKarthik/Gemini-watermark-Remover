@@ -16,11 +16,12 @@ import traceback
 import cv2
 import numpy as np
 import imageio_ffmpeg
-from flask import Flask, request, jsonify, send_file, send_from_directory, render_template, Response
+from flask import Flask, request, jsonify, send_file, send_from_directory, render_template, Response, redirect
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from remover import clamp_box, mask_from_box, clean_with_mask, remove_region
+from translations import LANGS, META, merged
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE, "uploads")
@@ -42,83 +43,145 @@ app = Flask(__name__, static_folder="static")
 CORS(app)
 
 
-# ---------------- SEO: multi-page site ----------------
+# ---------------- i18n: multi-language multi-page site ----------------
+SEO_PAGES = {
+    "how-it-works": "how-it-works.html",
+    "features": "features.html",
+    "guides": "guides.html",
+    "guides/remove-gemini-watermark-from-photos": "guide-photo.html",
+    "guides/remove-gemini-watermark-from-videos": "guide-video.html",
+    "guides/what-is-the-gemini-watermark": "guide-what.html",
+    "faq": "faq.html",
+    "about": "about.html",
+    "privacy": "privacy.html",
+    "terms": "terms.html",
+}
+
+
+def detect_lang():
+    """Pick the best language from the Accept-Language header."""
+    header = request.headers.get("Accept-Language", "")
+    best, bestq = "en", 0.0
+    for part in header.split(","):
+        seg = part.strip().split(";q=")
+        base = seg[0].strip().lower().split("-")[0]
+        try:
+            q = float(seg[1]) if len(seg) > 1 else 1.0
+        except ValueError:
+            q = 0.0
+        if base in LANGS and q > 0 and q > bestq:
+            best, bestq = base, q
+    return best
+
+
 @app.context_processor
-def seo_context():
+def i18n_context():
+    """Expose the merged translation dict, language prefix and hreflang
+    alternates for the current path to every template."""
+    parts = request.path.split("/")
+    lang = parts[1] if len(parts) > 1 and parts[1] in LANGS else "en"
+    rest = "/" + "/".join(parts[2:]) if lang in LANGS and len(parts) > 2 else request.path
+    if lang not in LANGS:
+        rest = request.path
+    root = request.url_root.rstrip("/")
+    if rest == "/" or rest == "":
+        alt = {l: f"{root}/{l}/" for l in LANGS}
+        self_url = f"{root}/{lang}/"
+    else:
+        alt = {l: f"{root}/{l}{rest}" for l in LANGS}
+        self_url = f"{root}/{lang}{rest}"
     return {
-        "site_url": request.url_root.rstrip("/"),
+        "lang": lang,
+        "lang_prefix": "/" + lang,
+        "t": merged(lang),
+        "langs": LANGS,
+        "meta_l": META,
+        "alt": alt,
+        "self_url": self_url,
+        "site_url": root,
         "year": time.strftime("%Y"),
     }
 
 
-@app.route("/how-it-works")
-def how_it_works():
-    return render_template("how-it-works.html")
+# landing page: /<lang>/
+@app.route("/<lang>/")
+def landing(lang):
+    if lang not in LANGS:
+        return render_template("404.html"), 404
+    return render_template("landing.html")
 
 
-@app.route("/features")
-def features():
-    return render_template("features.html")
+# tool page: /<lang>/remover
+@app.route("/<lang>/remover")
+def remover_lang(lang):
+    if lang not in LANGS:
+        return render_template("404.html"), 404
+    return render_template("tool.html")
 
 
-@app.route("/guides")
-def guides():
-    return render_template("guides.html")
+# /remover serves the English tool page
+@app.route("/remover")
+def remover_en():
+    return render_template("tool.html")
 
 
-@app.route("/guides/remove-gemini-watermark-from-photos")
-def guide_photo():
-    return render_template("guide-photo.html")
+# legacy English-only SEO routes -> permanent redirects to /en/...
+def _legacy(page):
+    def red():
+        return redirect(f"/en/{page}", code=301)
+    return red
 
 
-@app.route("/guides/remove-gemini-watermark-from-videos")
-def guide_video():
-    return render_template("guide-video.html")
+# localized SEO pages
+def _page(tmpl):
+    def view(**kwargs):
+        return render_template(tmpl)
+    return view
 
 
-@app.route("/guides/what-is-the-gemini-watermark")
-def guide_what():
-    return render_template("guide-what.html")
+for _page_path, _tmpl in SEO_PAGES.items():
+    app.add_url_rule(f"/<lang>/{_page_path}",
+                     f"page_{_page_path.replace('/', '_').replace('-', '_')}",
+                     _page(_tmpl))
+    app.add_url_rule(f"/{_page_path}",
+                     f"legacy_{_page_path.replace('/', '_').replace('-', '_')}",
+                     _legacy(_page_path))
 
 
-@app.route("/faq")
-def faq():
-    return render_template("faq.html")
-
-
-@app.route("/about")
-def about():
-    return render_template("about.html")
-
-
-@app.route("/privacy")
-def privacy():
-    return render_template("privacy.html")
-
-
-@app.route("/terms")
-def terms():
-    return render_template("terms.html")
+# root: detect the visitor's language and 302 to the localized landing page
+@app.route("/")
+def detect():
+    resp = redirect(f"/{detect_lang()}/", code=302)
+    resp.headers["Vary"] = "Accept-Language"
+    return resp
 
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
     root = request.url_root.rstrip("/")
-    urls = [
-        (f"{root}/", "daily", "1.0"),
-        (f"{root}/how-it-works", "weekly", "0.9"),
-        (f"{root}/features", "weekly", "0.8"),
-        (f"{root}/guides", "weekly", "0.8"),
-        (f"{root}/guides/remove-gemini-watermark-from-photos", "monthly", "0.8"),
-        (f"{root}/guides/remove-gemini-watermark-from-videos", "monthly", "0.8"),
-        (f"{root}/guides/what-is-the-gemini-watermark", "monthly", "0.7"),
-        (f"{root}/faq", "monthly", "0.8"),
-        (f"{root}/about", "monthly", "0.4"),
-        (f"{root}/privacy", "yearly", "0.3"),
-        (f"{root}/terms", "yearly", "0.3"),
+    # (path, changefreq, priority) — "" is the localized landing page
+    entries = [
+        ("", "daily", "1.0"),
+        ("remover", "weekly", "0.9"),
+        ("how-it-works", "weekly", "0.8"),
+        ("features", "weekly", "0.8"),
+        ("guides", "weekly", "0.8"),
+        ("guides/remove-gemini-watermark-from-photos", "monthly", "0.8"),
+        ("guides/remove-gemini-watermark-from-videos", "monthly", "0.8"),
+        ("guides/what-is-the-gemini-watermark", "monthly", "0.7"),
+        ("faq", "monthly", "0.8"),
+        ("about", "monthly", "0.4"),
+        ("privacy", "yearly", "0.3"),
+        ("terms", "yearly", "0.3"),
     ]
-    xml = render_template("sitemap.xml",
-                          urls=[{"loc": u[0], "freq": u[1], "prio": u[2]} for u in urls])
+    urls = []
+    for path, freq, prio in entries:
+        for l in LANGS:
+            loc = f"{root}/{l}/" if not path else f"{root}/{l}/{path}"
+            alts = {a: (f"{root}/{a}/" if not path else f"{root}/{a}/{path}")
+                    for a in LANGS}
+            urls.append({"loc": loc, "freq": freq, "prio": prio, "alts": alts})
+    xml = render_template("sitemap.xml", urls=urls)
     return Response(xml, mimetype="application/xml")
 
 
@@ -276,11 +339,6 @@ def run_job(job_id):
         job["done"] = True
         log(job, f"ERROR: {e}")
         traceback.print_exc()
-
-
-@app.route("/")
-def index():
-    return send_from_directory(app.static_folder, "index.html")
 
 
 @app.route("/api/upload", methods=["POST"])

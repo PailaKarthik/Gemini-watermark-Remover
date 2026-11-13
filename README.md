@@ -98,7 +98,7 @@ The app binds `0.0.0.0` and reads the `PORT` env var automatically.
 </details>
 
 > [!TIP]
-> **SEO is pre-wired:** 11 keyword-targeted pages, JSON-LD structured data (WebApplication / HowTo / FAQPage / Article / BreadcrumbList), `sitemap.xml` and `robots.txt` — all URLs auto-adapt to your deployed domain. After deploying, submit `/sitemap.xml` in [Google Search Console](https://search.google.com/search-console).
+> **SEO is pre-wired:** every page exists in **8 languages** (🇬🇧 English · 🇪🇸 Español · 🇩🇪 Deutsch · 🇫🇷 Français · 🇮🇹 Italiano · 🇵🇹 Português · 🇳🇱 Nederlands · 🇵🇱 Polski) with localized keywords, slugs stay English for stable URLs (`/es/remover`, `/de/faq` …), JSON-LD structured data (WebApplication / HowTo / FAQPage / Article / BreadcrumbList), `hreflang` alternates + `x-default`, and a `sitemap.xml` covering all 96 language×page URLs — all URLs auto-adapt to your deployed domain. After deploying, submit `/sitemap.xml` in [Google Search Console](https://search.google.com/search-console). Visitors on `/` are auto-detected via `Accept-Language` and sent to their language landing.
 
 ## 🔌 API
 
@@ -118,13 +118,13 @@ GET  /api/download/<id>      ?view=1 previews inline   → cleaned file
 - **Video pipeline** — frames stream raw (`bgr24`) straight into ffmpeg's x264 in one pass: `veryfast` preset, CRF 17, `yuv420p`, audio copied as AAC 192k. No intermediate files, no double transcode.
 
 ```
-├── app.py            Flask server + threaded job engine
+├── app.py            Flask server + threaded job engine + i18n routing (/{lang}/… + Accept-Language detect)
 ├── remover.py        clamp_box · mask_from_box · clean_with_mask · remove_region
+├── translations.py   8-language content engine (en · es · de · fr · it · pt · nl · pl) with EN fallback
 ├── static/
-│   ├── index.html    the tool UI (single file, zero build step)
-│   ├── site.css      shared styles for content pages
+│   ├── site.css      shared styles for content pages + tool UI
 │   └── favicon.svg
-├── templates/        11 SEO pages (how-it-works · features · guides · faq · legal)
+├── templates/        tool.html (localized UI) · landing.html · 10 dict-driven SEO pages × 8 languages
 ├── assets/banner.svg
 ├── Dockerfile        Render / HF Spaces / any Docker host
 ├── render.yaml       Render blueprint
@@ -159,7 +159,7 @@ No. Photos save at original resolution at quality 100. Video encodes once at x26
 
 ## 🤝 Contributing
 
-PRs welcome! Areas that could use love: more inpainting backends (LAMA, LaMa-fast), a desktop build, i18n. Please keep the zero-dependency-on-cloud promise.
+PRs welcome! Areas that could use love: more inpainting backends (LAMA, LaMa-fast), a desktop build, more languages (add a dict in `translations.py` + one entry in `LANGS` — everything else is automatic). Please keep the zero-dependency-on-cloud promise.
 
 ## 📄 License
 
