@@ -115,7 +115,7 @@ GET  /api/download/<id>      ?view=1 previews inline   → cleaned file
 
 - **Mask** — inside your box, bright badge pixels form a tight mask (fallback: box core), then dilated by 3×3. For video, masks from 5 sampled frames (start, quarters, middle, end) are **unioned**, so the badge is covered through background changes without the mask "breathing" between frames.
 - **Fill** — `cv2.inpaint` (Navier–Stokes, radius 2) + a Telea pass on the fringe + noise matched to the local grain, so the repaired area doesn't look suspiciously smooth.
-- **Video pipeline** — frames stream raw (`bgr24`) straight into ffmpeg's x264 in one pass: `veryfast` preset, CRF 17, `yuv420p`, audio copied as AAC 192k. No intermediate files, no double transcode.
+- **Video pipeline** — frames stream raw (`bgr24`) straight into ffmpeg's x264 in one pass: `superfast` preset, CRF 17, `yuv420p`, audio copied as AAC 192k. No intermediate files, no double transcode. Mask bounds are computed once and reused for every frame.
 
 ```
 ├── app.py            Flask server + threaded job engine + i18n routing (/{lang}/… + Accept-Language detect)
