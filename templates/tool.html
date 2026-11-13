@@ -1354,6 +1354,22 @@ async function removeVideoLocal() {
       while (venc.encodeQueueSize > 4 && guard++ < 2000) await sleep(5);
     };
 
+    const seekingLoop = async () => {
+      // Universal path: seek-decode every frame at measured fps.
+      // The browser applies container rotation when drawing the video
+      // element, so orientation and aspect are always display-correct here.
+      const dur = pv.duration;
+      for (let k = 0; k < n; k++) {
+        await seekTo(pv, Math.min(k / fps, Math.max(dur - 0.02, 0)));
+        wctx.drawImage(pv, 0, 0, W, H);
+        cleanCanvasFrame(Math.round(k * 1e6 / fps));
+        doneCount++;
+        showProg();
+        await waitQueue();
+        if (vencErr) throw vencErr;
+      }
+    };
+    let orientChecked = false, fellBack = false;
     if (demux) {
       // Fast path: exact demux + hardware decode, timestamps preserved.
       const vq = [];
@@ -1389,6 +1405,23 @@ async function removeVideoLocal() {
         if (demuxErr) throw demuxErr;
         const fr = vq.shift();
         if (fr) {
+          if (!orientChecked) {
+            orientChecked = true;
+            const codedLand = fr.codedWidth > fr.codedHeight;
+            if (codedLand !== (W > H)) {
+              // Rotated container (typical phone portrait video): raw decoder
+              // frames don't match display orientation, and the box was drawn
+              // in display coordinates — seek instead (browser un-rotates).
+              for (const q of vq) { try { q.close(); } catch (e) {} }
+              vq.length = 0;
+              try { fr.close(); } catch (e) {}
+              try { dec.close(); } catch (e) {}
+              try { mp4f.stop(); } catch (e) {}
+              await seekingLoop();
+              fellBack = true;
+              break;
+            }
+          }
           try {
             wctx.drawImage(fr, 0, 0, W, H);
           } finally { try { fr.close(); } catch (e) {} }
@@ -1401,6 +1434,8 @@ async function removeVideoLocal() {
         if (delivered >= demux.total) break;
         await sleep(5);
       }
+      if (fellBack) { dec = null; }
+      else {
       try { await dec.flush(); } catch (e) { if (demuxErr) throw demuxErr; }
       while (vq.length) {
         const fr = vq.shift();
@@ -1413,18 +1448,9 @@ async function removeVideoLocal() {
       }
       try { dec.close(); } catch (e) {}
       dec = null;
-    } else {
-      // Universal path: seek-decode every frame at measured fps.
-      const dur = pv.duration;
-      for (let k = 0; k < n; k++) {
-        await seekTo(pv, Math.min(k / fps, Math.max(dur - 0.02, 0)));
-        wctx.drawImage(pv, 0, 0, W, H);
-        cleanCanvasFrame(Math.round(k * 1e6 / fps));
-        doneCount++;
-        showProg();
-        await waitQueue();
-        if (vencErr) throw vencErr;
       }
+    } else {
+      await seekingLoop();
     }
 
     await venc.flush();
