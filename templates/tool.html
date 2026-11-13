@@ -1413,7 +1413,7 @@ async function removeVideoLocal() {
         const brect = cvFillWithMask(rgb, union, bbox, ftmp);
         // Write back only the repaired patch: a full-frame imshow re-uploads
         // W*H pixels every frame; putImageData touches just the small box.
-        const patch = ftmp.push(new cv.Mat());
+        const patch = ftmp.push(new cv.Mat()) && ftmp[ftmp.length - 1];
         cv.cvtColor(rgb.roi(brect), patch, cv.COLOR_RGB2RGBA);
         wctx.putImageData(new ImageData(new Uint8ClampedArray(patch.data), patch.cols, patch.rows), brect.x, brect.y);
         const vf = new VideoFrame(work, { timestamp: ts, duration: frameDur });
