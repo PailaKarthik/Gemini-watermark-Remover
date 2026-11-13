@@ -30,7 +30,7 @@ Most remoters blur a rectangle and hope you won't notice. This one is built on t
 | ◎ | **Pixel-exact manual selection** | *You* draw the box — no AI guessing wrong and eating your content. A live preview shows the exact pixels before anything runs. |
 | ⬚ | **Region-only editing** | Every pixel outside your box is **byte-identical** to the original. No global re-compression, no "enhancement". |
 | ✦ | **Texture-aware inpainting** | Navier–Stokes fill + Telea fringe pass + **grain matching** — the patch blends into the surroundings instead of looking like a smooth sticker. |
-| ▣ | **Original quality output** | Photos keep full resolution (quality 100). Video encodes **once** at x264 CRF 17 (visually lossless) — same resolution, same FPS, **original audio kept**. |
+| ▣ | **Original quality output** | Photos keep full resolution (lossless PNG). Video is re-encoded in-browser at high bitrate H.264 — same resolution, same frame rate, **original audio kept**. |
 | ⚡ | **Genuinely fast** | Crop-only processing (~45 ms per 1080p frame) + single-pass streaming encode. A 1080p clip usually finishes in seconds. |
 | ⌂ | **Private by design** | The engine runs on **your machine**. Nothing is ever uploaded, stored remotely, or used for training. |
 
@@ -93,7 +93,7 @@ docker build -t gwm-remover .
 docker run -p 5000:5000 gwm-remover
 ```
 
-The app binds `0.0.0.0` and reads the `PORT` env var automatically. Production runs on **gunicorn** (1 worker × 2 threads, 900s timeout) with **headless OpenCV** — tuned to stay inside small-instance RAM (≈512 MB): in-place (zero-copy) editing, one video encode at a time, RAM-bounded x264 (2 threads, short lookahead — same CRF 17 quality), single-threaded native math libs, 500 MB upload cap, quiet ffmpeg logs, finished jobs + files auto-swept after 1 hour. Health check: `/healthz`.
+The app binds `0.0.0.0` and reads the `PORT` env var automatically. Production runs on **gunicorn** — but the server is only a static host now: **zero compute happens server-side**, so any free tier works with RAM to spare (nothing to OOM, nothing to scale). Health check: `/healthz`.
 
 </details>
 
@@ -115,16 +115,16 @@ GET  /api/download/<id>      ?view=1 previews inline   → cleaned file
 
 - **Mask** — inside your box, bright badge pixels form a tight mask (fallback: box core), then dilated by 3×3. For video, masks from 5 sampled frames (start, quarters, middle, end) are **unioned**, so the badge is covered through background changes without the mask "breathing" between frames.
 - **Fill** — `cv2.inpaint` (Navier–Stokes, radius 2) + a Telea pass on the fringe + noise matched to the local grain, so the repaired area doesn't look suspiciously smooth.
-- **Video pipeline** — frames stream raw (`bgr24`) straight into ffmpeg's x264 in one pass: `superfast` preset, CRF 17, `yuv420p`, audio copied as AAC 192k. No intermediate files, no double transcode. Mask bounds are computed once and reused for every frame.
+- **Video pipeline** — frames are demuxed + decoded on-device (WebCodecs, exact timestamps preserved), cleaned with the same pixel-tight mask used for the whole clip, re-encoded to H.264 at high bitrate, and muxed to MP4 with the original audio (AAC 192k). Union mask from 5 spread frames, so the badge is covered through background changes with zero flicker — no server, no uploads, no file ever leaves your device.
 
 ```
-├── app.py            Flask server + threaded job engine + i18n routing (/{lang}/… + Accept-Language detect)
-├── remover.py        clamp_box · mask_from_box · clean_with_mask · remove_region
+├── app.py            Flask host for the localized pages (no compute — removal runs in the browser)
 ├── translations.py   8-language content engine (en · es · de · fr · it · pt · nl · pl) with EN fallback
 ├── static/
+│   ├── vendor/       on-device engines: opencv.js (inpainting) + mp4box (demux) + mp4-muxer (MP4 output)
 │   ├── site.css      shared styles for content pages + tool UI
 │   └── favicon.svg
-├── templates/        tool.html (localized UI) · landing.html · 10 dict-driven SEO pages × 8 languages
+├── templates/        tool.html (localized UI, 100% client-side) · landing.html · 10 dict-driven SEO pages × 8 languages
 ├── assets/banner.svg
 ├── Dockerfile        Render / HF Spaces / any Docker host
 ├── render.yaml       Render blueprint

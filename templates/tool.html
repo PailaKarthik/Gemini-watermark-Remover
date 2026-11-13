@@ -477,6 +477,7 @@ const MSG = {
   m_badfile: {{ t.tool.m_badfile|tojson }},
   m_lost: {{ t.tool.m_lost|tojson }},
   m_engine: {{ t.tool.m_engine|tojson }},
+  m_nocodec: {{ t.tool.m_nocodec|tojson }},
   m_err: {{ t.tool.m_err|tojson }},
   m_toosmall: {{ t.tool.m_toosmall|tojson }},
   m_selected: {{ t.tool.m_selected|tojson }},
@@ -553,8 +554,7 @@ const liveDot = document.getElementById('liveDot');
 const statusPill = document.getElementById('statusPill');
 const actElapsed = document.getElementById('actElapsed');
 const maxBtn = document.getElementById('maxBtn');
-let file = null, kind = null, jobId = null, timer = null, shownLogs = 0;
-let uploadXHR = null, uploadSeq = 0, pollFails = 0;
+let file = null, kind = null, shownLogs = 0;
 let cvReady = false, cvReadyPromise = null;
 
 // On-device engine (OpenCV.js, WASM): loads once in the background so
@@ -568,7 +568,7 @@ function ensureCv() {
     setTimeout(() => done(false), 60000);
     if (window.cv && cv.getBuildInformation) { cvReady = true; updateGo(); done(true); return; }
     const s = document.createElement('script');
-    s.src = 'https://docs.opencv.org/4.x/opencv.js';
+    s.src = '/static/vendor/opencv.js';
     s.async = true;
     s.onload = () => {
       try {
@@ -643,39 +643,7 @@ async function setFile(f) {
   }
   cleanWrap.innerHTML = '<div class="empty">' + MSG.empty2 + '</div>';
   maxBtn.classList.remove('on');
-  jobId = null;
-  if (kind === 'video') {
-    say(mf('m_queued', f.name, kind, natW, natH));
-    stageText.textContent = stg('select');
-    setPill(PILL.ready, '');
-    // A new file supersedes any in-flight upload: abort it so a stale
-    // response can never overwrite this file's job.
-    if (uploadXHR) { const x = uploadXHR; uploadXHR = null; try { x.abort(); } catch (e) {} }
-    const mySeq = ++uploadSeq;
-    const j = await uploadWithProgress(f);
-    if (mySeq !== uploadSeq) return;              // superseded by a newer file
-    if (!j || j.error === 'ABORTED') return;      // aborted: stay silent
-    uploadXHR = null;
-    if (j.error) {
-      if (j.error === 'TOOBIG') say(mf('m_err') + mf('m_toobig'), 'err');
-      else if (j.error === 'UPFAIL') say(mf('m_err') + mf('m_upfail'), 'err');
-      else say(mf('m_err') + j.error, 'err');
-      setPill(PILL.error, 'err');
-      stageText.textContent = stg('failed');
-      fill.style.width = '0%';
-      return;
-    }
-    // Upload finished: confirm it, restore the idle look, hand over to selection.
-    say(mf('m_uploaded', f.name));
-    setPill(PILL.ready, '');
-    stageText.textContent = stg('select');
-    fill.style.width = '5%';
-    jobId = j.job_id;
-    if (j.steps) renderSteps(j.steps);
-    updateGo();
-    return;
-  }
-  // Photos are processed on-device: nothing is uploaded at all.
+  // Everything runs on-device now: files are previewed locally, never uploaded.
   say(mf('m_queued', f.name, kind, natW, natH));
   setPill(PILL.ready, '');
   if (cvReady) {
@@ -688,37 +656,6 @@ async function setFile(f) {
     });
   }
   updateGo();
-}
-
-function uploadWithProgress(f) {
-  return new Promise((resolve) => {
-    const fd = new FormData(); fd.append('file', f);
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', '/api/upload');
-    setPill(PILL.working, 'work');
-    say(mf('m_uploading'));
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && e.total > 0) {
-        const pct = Math.round(100 * e.loaded / e.total);
-        fill.style.width = pct + '%';
-        stageText.textContent = mf('m_uploading') + ' ' + pct + '%';
-      } else {
-        stageText.textContent = mf('m_uploading');
-      }
-    };
-    xhr.onload = () => {
-    if (uploadXHR === xhr) uploadXHR = null;
-    if (xhr.status === 413) { resolve({ error: 'TOOBIG' }); return; }
-    if (xhr.status < 200 || xhr.status >= 300) { resolve({ error: 'UPFAIL' }); return; }
-    try { resolve(JSON.parse(xhr.responseText)); }
-    catch (err) { resolve({ error: 'UPFAIL' }); }
-    };
-    xhr.onerror = () => { if (uploadXHR === xhr) uploadXHR = null; resolve({ error: 'UPFAIL' }); };
-    xhr.onabort = () => { if (uploadXHR === xhr) uploadXHR = null; resolve({ error: 'ABORTED' }); };
-    xhr.timeout = 0; // uploads of large videos take a while; never time out
-    uploadXHR = xhr;
-    xhr.send(fd);
-  });
 }
 
 // ---- exact frame mapping (contain-fit: element may letterbox internally)
@@ -804,10 +741,9 @@ window.addEventListener('resize', drawSel);
 window.addEventListener('scroll', drawSel, { passive: true });
 
 function updateGo() {
-  // Photos run on-device (no upload needed) once the WASM engine is ready;
-  // videos and the offline fallback still need a server job.
-  const ready = (kind === 'image' && cvReady) || jobId;
-  goBtn.disabled = !(ready && sel && sel.w >= 8 && sel.h >= 8);
+  // Everything runs on-device now: the button enables once the WASM engine
+  // is ready and a big-enough box is drawn. No upload, no job id.
+  goBtn.disabled = !(cvReady && sel && sel.w >= 8 && sel.h >= 8);
 }
 
 maxBtn.onclick = () => {
@@ -852,23 +788,151 @@ function hidePreview() {
 }
 function showPreview() {
   hidePreview();
-  if (!jobId || !sel) return;
-  previewTimer = setTimeout(async () => {
+  if (!sel || !mediaEl || !natW || !natH) return;
+  previewTimer = setTimeout(() => {
     try {
-      const r = await fetch('/api/preview/' + jobId, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ box: [sel.x, sel.y, sel.w, sel.h] })
-      });
-      const j = await r.json();
-      if (j.error || !j.url) return;
+      // Local crop: the exact pixels the removal will use (video: current frame).
+      let bx = Math.round(sel.x), by = Math.round(sel.y);
+      let bw = Math.round(sel.w), bh = Math.round(sel.h);
+      bx = Math.max(0, Math.min(bx, natW - 1));
+      by = Math.max(0, Math.min(by, natH - 1));
+      bw = Math.max(1, Math.min(bw, natW - bx));
+      bh = Math.max(1, Math.min(bh, natH - by));
+      const sc = Math.max(bw, bh) < 320 ? Math.min(4.0, 320.0 / Math.max(bw, bh)) : 1.0;
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(bw * sc));
+      c.height = Math.max(1, Math.round(bh * sc));
+      const cx = c.getContext('2d');
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(mediaEl, bx, by, bw, bh, 0, 0, c.width, c.height);
+      const url = c.toDataURL('image/png');
       const d = document.createElement('div');
       d.id = 'prevThumb';
       d.style.cssText = 'margin-top:10px;display:flex;gap:12px;align-items:center;background:rgba(12,11,24,.85);border:1px solid rgba(167,139,250,.3);border-radius:12px;padding:9px 13px;animation:rise .4s ease both';
-      d.innerHTML = `<img src="${j.url}" style="max-width:190px;max-height:115px;border-radius:9px;border:1px solid rgba(167,139,250,.3)" alt="selected region"/>
+      d.innerHTML = `<img src="${url}" style="max-width:190px;max-height:115px;border-radius:9px;border:1px solid rgba(167,139,250,.3)" alt="selected region"/>
         <div style="font-size:11.5px;color:var(--muted)">${MSG.m_prev1}<br/>${MSG.m_prev2}</div>`;
       document.getElementById('selHint').appendChild(d);
     } catch (e) { /* best-effort */ }
   }, 350);
+}
+
+// ---- shared on-device core (photos + every video frame) ----
+// tmp collects cv.Mats so the caller can delete them (WASM has no GC).
+// gray: single-channel full-frame Mat. box: {x,y,w,h} floats.
+// Returns {mask, bx,by,bw,bh} with clamped integer box; mask tracked in tmp.
+function cvMaskFromGray(gray, box, W, H, tmp) {
+  const track = (m) => { tmp.push(m); return m; };
+  let bx = Math.round(box.x), by = Math.round(box.y);
+  let bw = Math.round(box.w), bh = Math.round(box.h);
+  bx = Math.max(0, Math.min(bx, W - 1));
+  by = Math.max(0, Math.min(by, H - 1));
+  bw = Math.max(8, Math.min(bw, W - bx));
+  bh = Math.max(8, Math.min(bh, H - by));
+  const pad = 6;
+  const x0 = Math.max(bx - pad, 0), y0 = Math.max(by - pad, 0);
+  const x1 = Math.min(bx + bw + pad, W), y1 = Math.min(by + bh + pad, H);
+  const rect = new cv.Rect(x0, y0, x1 - x0, y1 - y0);
+  const cropG = track(gray.roi(rect));
+  const meanM = track(new cv.Mat()), stdM = track(new cv.Mat());
+  cv.meanStdDev(cropG, meanM, stdM);
+  const mean = meanM.data64F[0], std = stdM.data64F[0];
+  const thresh = Math.max(150, mean + 1.5 * std);
+  const bin = track(new cv.Mat());
+  cv.threshold(cropG, bin, thresh, 255, cv.THRESH_BINARY);
+  const k3 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3)));
+  const opened = track(new cv.Mat());
+  cv.morphologyEx(bin, opened, cv.MORPH_OPEN, k3);
+  const lab = track(new cv.Mat()), stats = track(new cv.Mat()), cent = track(new cv.Mat());
+  const n = cv.connectedComponentsWithStats(opened, lab, stats, cent, 8, cv.CV_32S);
+  const keep = track(cv.Mat.zeros(opened.rows, opened.cols, cv.CV_8UC1));
+  const areas = [];
+  for (let i = 1; i < n; i++) areas[i] = stats.intAt(i, cv.CC_STAT_AREA);
+  const labD = lab.data32S, keepD = keep.data;
+  for (let p = 0; p < labD.length; p++) {
+    const li = labD[p];
+    if (li > 0 && areas[li] >= 12) keepD[p] = 255;
+  }
+  if (cv.countNonZero(keep) < 0.08 * bw * bh) {
+    keep.setTo(new cv.Scalar(0));
+    cv.rectangle(keep,
+      new cv.Point(bx - x0 + 1, by - y0 + 1),
+      new cv.Point(bx - x0 + bw - 1, by - y0 + bh - 1),
+      new cv.Scalar(255), -1);
+  }
+  const kdil = track(new cv.Mat());
+  cv.dilate(keep, kdil, k3);
+  const mask = track(cv.Mat.zeros(H, W, cv.CV_8UC1));
+  kdil.copyTo(mask.roi(rect));
+  return { mask, bx, by, bw, bh };
+}
+
+// Fills the masked area of a 3-channel RGB mat in place, grain-matched.
+// bbox: precomputed {x0,y0,x1,y1} or null to derive from the mask.
+function cvFillWithMask(rgb, mask, bbox, tmp) {
+  const track = (m) => { tmp.push(m); return m; };
+  let brect;
+  if (bbox) {
+    brect = new cv.Rect(bbox.x0, bbox.y0, bbox.x1 - bbox.x0, bbox.y1 - bbox.y0);
+  } else {
+    const nz = track(new cv.Mat());
+    cv.findNonZero(mask, nz);
+    const br = cv.boundingRect(nz);
+    const bp = 10, W = mask.cols, H = mask.rows;
+    const bx0 = Math.max(br.x - bp, 0), by0 = Math.max(br.y - bp, 0);
+    const bx1 = Math.min(br.x + br.width + bp, W), by1 = Math.min(br.y + br.height + bp, H);
+    brect = new cv.Rect(bx0, by0, bx1 - bx0, by1 - by0);
+  }
+  const crop = track(rgb.roi(brect));
+  const m = track(mask.roi(brect));
+  const filled = track(new cv.Mat());
+  cv.inpaint(crop, m, filled, 2, cv.INPAINT_NS);
+  const k3 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3)));
+  const inner = track(new cv.Mat());
+  cv.erode(m, inner, k3);
+  if (cv.countNonZero(inner) > 0) {
+    const gf = track(new cv.Mat());
+    cv.cvtColor(filled, gf, cv.COLOR_RGB2GRAY);
+    const fringe = track(cv.Mat.zeros(m.rows, m.cols, cv.CV_8UC1));
+    const gd = gf.data, id = inner.data, fd = fringe.data;
+    let anyF = false;
+    for (let p = 0; p < id.length; p++) {
+      if (id[p] && gd[p] > 215) { fd[p] = 255; anyF = true; }
+    }
+    if (anyF) {
+      const tmp2 = track(new cv.Mat());
+      cv.inpaint(filled, fringe, tmp2, 2, cv.INPAINT_TELEA);
+      tmp2.copyTo(filled);
+    }
+  }
+  const k9 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9)));
+  const k5 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5)));
+  const d9 = track(new cv.Mat()), d5 = track(new cv.Mat());
+  cv.dilate(m, d9, k9); cv.dilate(m, d5, k5);
+  const ring = track(new cv.Mat());
+  cv.subtract(d9, d5, ring);
+  if (cv.countNonZero(ring) >= 24) {
+    const chs = track(new cv.MatVector());
+    cv.split(filled, chs);
+    const m32 = track(new cv.Mat());
+    m.convertTo(m32, cv.CV_32F, 1 / 255);
+    const feather = track(new cv.Mat());
+    cv.GaussianBlur(m32, feather, new cv.Size(3, 3), 0);
+    for (let c = 0; c < 3; c++) {
+      const chMean = track(new cv.Mat()), chStd = track(new cv.Mat());
+      cv.meanStdDev(chs.get(c), chMean, chStd, ring);
+      const s = chStd.data64F[0];
+      if (s < 0.7) continue;
+      const ch32 = track(new cv.Mat());
+      chs.get(c).convertTo(ch32, cv.CV_32F);
+      const noise = track(new cv.Mat.zeros(ch32.rows, ch32.cols, cv.CV_32F));
+      cv.randn(noise, new cv.Scalar(0), new cv.Scalar(Math.min(s, 9)));
+      cv.multiply(noise, feather, noise);
+      cv.add(ch32, noise, ch32);
+      ch32.convertTo(chs.get(c), cv.CV_8U);
+    }
+    cv.merge(chs, filled); // split() copies: merge the grain back in
+  }
+  filled.copyTo(rgb.roi(brect));
 }
 
 // ---- on-device photo removal (OpenCV.js / WASM) ----
@@ -889,116 +953,15 @@ async function removeImageLocal() {
     // inpaint needs 3 channels: work on an RGB copy, convert back at the end
     const rgb = track(new cv.Mat());
     cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
-    // clamp box (mirrors clamp_box)
-    let bx = Math.round(sel.x), by = Math.round(sel.y);
-    let bw = Math.round(sel.w), bh = Math.round(sel.h);
-    bx = Math.max(0, Math.min(bx, W - 1));
-    by = Math.max(0, Math.min(by, H - 1));
-    bw = Math.max(8, Math.min(bw, W - bx));
-    bh = Math.max(8, Math.min(bh, H - by));
     fill.style.width = '10%';
-    // --- mask ---
     const gray = track(new cv.Mat());
     cv.cvtColor(rgb, gray, cv.COLOR_RGB2GRAY);
-    const pad = 6;
-    const x0 = Math.max(bx - pad, 0), y0 = Math.max(by - pad, 0);
-    const x1 = Math.min(bx + bw + pad, W), y1 = Math.min(by + bh + pad, H);
-    const rect = new cv.Rect(x0, y0, x1 - x0, y1 - y0);
-    const cropG = track(gray.roi(rect));
-    const meanM = track(new cv.Mat()), stdM = track(new cv.Mat());
-    cv.meanStdDev(cropG, meanM, stdM);
-    const mean = meanM.data64F[0], std = stdM.data64F[0];
-    const thresh = Math.max(150, mean + 1.5 * std);
-    const bin = track(new cv.Mat());
-    cv.threshold(cropG, bin, thresh, 255, cv.THRESH_BINARY);
-    const k3 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3)));
-    const opened = track(new cv.Mat());
-    cv.morphologyEx(bin, opened, cv.MORPH_OPEN, k3);
-    const lab = track(new cv.Mat()), stats = track(new cv.Mat()), cent = track(new cv.Mat());
-    const n = cv.connectedComponentsWithStats(opened, lab, stats, cent, 8, cv.CV_32S);
-    const keep = track(cv.Mat.zeros(opened.rows, opened.cols, cv.CV_8UC1));
-    const areas = [];
-    for (let i = 1; i < n; i++) areas[i] = stats.intAt(i, cv.CC_STAT_AREA);
-    const labD = lab.data32S, keepD = keep.data;
-    for (let p = 0; p < labD.length; p++) {
-      const li = labD[p];
-      if (li > 0 && areas[li] >= 12) keepD[p] = 255;
-    }
-    if (cv.countNonZero(keep) < 0.08 * bw * bh) {
-      keep.setTo(new cv.Scalar(0));
-      cv.rectangle(keep,
-        new cv.Point(bx - x0 + 1, by - y0 + 1),
-        new cv.Point(bx - x0 + bw - 1, by - y0 + bh - 1),
-        new cv.Scalar(255), -1);
-    }
-    const kdil = track(new cv.Mat());
-    cv.dilate(keep, kdil, k3);
-    const mask = track(cv.Mat.zeros(H, W, cv.CV_8UC1));
-    kdil.copyTo(mask.roi(rect));
+    const r = cvMaskFromGray(gray, sel, W, H, tmp);
+    const { mask, bx, by, bw, bh } = r;
     const maskedPx = cv.countNonZero(mask);
     fill.style.width = '35%';
-    // --- bounding box of the mask ---
-    const nz = track(new cv.Mat());
-    cv.findNonZero(mask, nz);
-    const br = cv.boundingRect(nz);
-    const bp = 10;
-    const bx0 = Math.max(br.x - bp, 0), by0 = Math.max(br.y - bp, 0);
-    const bx1 = Math.min(br.x + br.width + bp, W), by1 = Math.min(br.y + br.height + bp, H);
-    const brect = new cv.Rect(bx0, by0, bx1 - bx0, by1 - by0);
-    const crop = track(rgb.roi(brect));
-    const m = track(mask.roi(brect));
-    // --- fill ---
-    const filled = track(new cv.Mat());
-    cv.inpaint(crop, m, filled, 2, cv.INPAINT_NS);
-    fill.style.width = '60%';
-    const inner = track(new cv.Mat());
-    cv.erode(m, inner, k3);
-    if (cv.countNonZero(inner) > 0) {
-      const gf = track(new cv.Mat());
-      cv.cvtColor(filled, gf, cv.COLOR_RGB2GRAY);
-      const fringe = track(cv.Mat.zeros(m.rows, m.cols, cv.CV_8UC1));
-      const gd = gf.data, id = inner.data, fd = fringe.data;
-      let anyF = false;
-      for (let p = 0; p < id.length; p++) {
-        if (id[p] && gd[p] > 215) { fd[p] = 255; anyF = true; }
-      }
-      if (anyF) {
-        const tmp2 = track(new cv.Mat());
-        cv.inpaint(filled, fringe, tmp2, 2, cv.INPAINT_TELEA);
-        tmp2.copyTo(filled);
-      }
-    }
-    // --- grain match from the surrounding ring ---
-    const k9 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(9, 9)));
-    const k5 = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(5, 5)));
-    const d9 = track(new cv.Mat()), d5 = track(new cv.Mat());
-    cv.dilate(m, d9, k9); cv.dilate(m, d5, k5);
-    const ring = track(new cv.Mat());
-    cv.subtract(d9, d5, ring);
-    if (cv.countNonZero(ring) >= 24) {
-      const chs = track(new cv.MatVector());
-      cv.split(filled, chs);
-      const m32 = track(new cv.Mat());
-      m.convertTo(m32, cv.CV_32F, 1 / 255);
-      const feather = track(new cv.Mat());
-      cv.GaussianBlur(m32, feather, new cv.Size(3, 3), 0);
-      for (let c = 0; c < 3; c++) {
-        const chMean = track(new cv.Mat()), chStd = track(new cv.Mat());
-        cv.meanStdDev(chs.get(c), chMean, chStd, ring);
-        const s = chStd.data64F[0];
-        if (s < 0.7) continue;
-        const ch32 = track(new cv.Mat());
-        chs.get(c).convertTo(ch32, cv.CV_32F);
-        const noise = track(new cv.Mat.zeros(ch32.rows, ch32.cols, cv.CV_32F));
-        cv.randn(noise, new cv.Scalar(0), new cv.Scalar(Math.min(s, 9)));
-        cv.multiply(noise, feather, noise);
-        cv.add(ch32, noise, ch32);
-        ch32.convertTo(chs.get(c), cv.CV_8U);
-      }
-      cv.merge(chs, filled); // split() copies: merge the grain back in
-    }
+    cvFillWithMask(rgb, mask, null, tmp);
     fill.style.width = '85%';
-    filled.copyTo(rgb.roi(brect));
     cv.cvtColor(rgb, src, cv.COLOR_RGB2RGBA);
     // --- show + download ---
     cleanWrap.innerHTML = '';
@@ -1026,139 +989,529 @@ async function removeImageLocal() {
     say(mf('m_done'), 'ok');
     goBtn.disabled = false; clearBtn.disabled = false;
   } catch (err) {
-    // On-device failed midway: fall back to the server pipeline.
-    const ok = await ensureServerJob();
-    if (!ok) { stopClock(); goBtn.disabled = false; clearBtn.disabled = false; return; }
-    await startServerProcess();
+    // Local processing failed (e.g. an extreme image size exhausting tab
+    // memory). Report it plainly; the original file is untouched.
+    say(mf('m_err') + mf('m_badfile'), 'err');
+    stageText.textContent = stg('failed');
+    setPill(PILL.error, 'err');
+    fill.style.width = '0%';
+    stopClock();
+    goBtn.disabled = false; clearBtn.disabled = false;
   } finally {
     for (const mm of tmp) { try { mm.delete(); } catch (e) {} }
   }
 }
 
+// Local step rail (no server steps anymore): upload is instant (no upload),
+// select is done once a box exists, remove/encode go active while working.
+function localSteps(state) {
+  const ids = kind === 'video'
+    ? ['upload', 'select', 'remove', 'encode', 'done']
+    : ['upload', 'select', 'remove', 'done'];
+  renderSteps(ids.map((id) => ({
+    id, label: STEPS_T[id] || id,
+    state: state === 'done' ? 'done'
+      : (id === 'upload' || id === 'select' ? 'done'
+        : (id === 'remove' || id === 'encode' ? 'active' : 'pending')),
+  })));
+}
+
+// ---- vendored MP4 libs (demux + mux), loaded only for video ----
+let mp4libs = null;
+async function loadMp4Libs() {
+  if (mp4libs) return mp4libs;
+  const [box, mux] = await Promise.all([
+    import('/static/vendor/mp4box.all.mjs'),
+    import('/static/vendor/mp4-muxer.mjs'),
+  ]);
+  if (!box.createFile || !mux.Muxer || !mux.ArrayBufferTarget) throw new Error('bad libs');
+  mp4libs = { createFile: box.createFile, DataStream: box.DataStream, Muxer: mux.Muxer, ArrayBufferTarget: mux.ArrayBufferTarget };
+  return mp4libs;
+}
+
+// ISO-BMFF metadata (exact fps + frame count + track) without decoding.
+function openMp4(libs, buf) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const done = (ok, v) => { if (!settled) { settled = true; ok ? resolve(v) : reject(v); } };
+    try {
+      const f = libs.createFile();
+      f.onError = (e) => done(false, new Error('mp4 ' + e));
+      f.onReady = (info) => {
+        try {
+          const vt = info && info.videoTracks && info.videoTracks[0];
+          if (!vt || !vt.nb_samples || !vt.timescale || !vt.duration) throw new Error('no video track');
+          const seconds = vt.duration / vt.timescale;
+          const fps = vt.nb_samples / seconds;
+          if (!(fps > 0) || !(seconds > 0) || vt.nb_samples < 1) throw new Error('bad meta');
+          const vv = vt.video || {};
+          done(true, { file: f, trackId: vt.id, codec: vt.codec || '',
+            fps, n: vt.nb_samples, seconds,
+            timescale: vt.timescale || (info.timescale || 90000),
+            tw: vv.width || 0, th: vv.height || 0 });
+        } catch (e) { done(false, e); }
+      };
+      const ab = buf.slice(0); ab.fileStart = 0;
+      f.appendBuffer(ab);
+      f.flush();
+    } catch (e) { done(false, e); }
+  });
+}
+
+// avcC/hvcc bytes for VideoDecoder, serialized from the track box.
+function codecDescription(libs, mp4file, trackId, codec) {
+  if (!/^(avc1|avc3|hvc1|hev1)/.test(codec || '')) return undefined;
+  try {
+    const traks = (mp4file.moov && mp4file.moov.traks) || [];
+    for (const trak of traks) {
+      if (trak.tkhd && trak.tkhd.track_id !== trackId) continue;
+      const stsd = trak && trak.mdia && trak.mdia.minf && trak.mdia.minf.stbl && trak.mdia.minf.stbl.stsd;
+      const entry = stsd && stsd.entries && stsd.entries[0];
+      const avc = entry && (entry.avcC || entry.hvcC);
+      if (avc && avc.write && libs.DataStream) {
+        const ds = new libs.DataStream();
+        ds.endianness = libs.DataStream.BIG_ENDIAN;
+        avc.write(ds);
+        const full = new Uint8Array(ds.buffer);
+        if (full.length > 8) return full.slice(8).buffer;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+// Non-ISO containers (webm/mkv/avi): measure fps with a brief muted playback.
+function probePlaybackFps(v) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (fps) => {
+      if (done) return; done = true;
+      try { v.pause(); } catch (e) {}
+      resolve(fps);
+    };
+    setTimeout(() => finish(30), 5000);
+    const oldT = v.currentTime, wasMuted = v.muted;
+    let f0 = null, m0 = null;
+    const cb = (now, meta) => {
+      if (f0 === null) { f0 = meta.presentedFrames; m0 = meta.mediaTime; }
+      else if (meta.mediaTime - m0 >= 1.0) {
+        const dt = meta.mediaTime - m0;
+        finish(dt > 0 ? Math.max(1, Math.round((meta.presentedFrames - f0) / dt)) : 30);
+        try { v.currentTime = oldT; } catch (e) {}
+        v.muted = wasMuted;
+        return;
+      }
+      if (!done) { try { v.requestVideoFrameCallback(cb); } catch (e) { finish(30); } }
+    };
+    try {
+      v.muted = true;
+      v.play().then(() => {
+        try { v.requestVideoFrameCallback(cb); } catch (e) { finish(30); }
+      }).catch(() => finish(30));
+    } catch (e) { finish(30); }
+  });
+}
+
+function seekTo(v, t) {
+  return new Promise((resolve) => {
+    let done = false;
+    const fin = () => { if (!done) { done = true; v.onseeked = null; resolve(); } };
+    setTimeout(fin, 8000);
+    try {
+      if (v.readyState >= 2 && Math.abs(v.currentTime - t) < 0.001) { fin(); return; }
+      v.onseeked = fin;
+      v.currentTime = t;
+    } catch (e) { fin(); }
+  });
+}
+
+// Union mask from a few spread frames (covers the badge under changing
+// backgrounds). v: sampling video element already pointed at the file.
+async function sampleUnionMask(v, work, wctx, W, H, fracs, box, tmp) {
+  const dur = v.duration;
+  if (!(dur > 0)) throw new Error('bad duration');
+  let union = null;
+  for (const fr of fracs) {
+    await seekTo(v, Math.min(Math.max(fr * dur, 0), Math.max(dur - 0.05, 0)));
+    wctx.drawImage(v, 0, 0, W, H);
+    const rgba = tmp.push(cv.imread(work)) && tmp[tmp.length - 1];
+    const gray = tmp.push(new cv.Mat()) && tmp[tmp.length - 1];
+    cv.cvtColor(rgba, gray, cv.COLOR_RGBA2RGB);
+    cv.cvtColor(gray, gray, cv.COLOR_RGB2GRAY);
+    const r = cvMaskFromGray(gray, box, W, H, tmp);
+    if (!union) union = r.mask;
+    else cv.bitwise_or(union, r.mask, union);
+  }
+  if (!union) throw new Error('no samples');
+  const maskedPx = cv.countNonZero(union);
+  const nz = tmp.push(new cv.Mat()) && tmp[tmp.length - 1];
+  cv.findNonZero(union, nz);
+  const br = cv.boundingRect(nz);
+  const bp = 10;
+  const x0 = Math.max(br.x - bp, 0), y0 = Math.max(br.y - bp, 0);
+  const x1 = Math.min(br.x + br.width + bp, W), y1 = Math.min(br.y + br.height + bp, H);
+  return { union, bbox: { x0, y0, x1, y1 }, maskedPx };
+}
+
+function downmixStereo(abuf) {
+  if (abuf.numberOfChannels <= 2) return abuf;
+  const nch = abuf.numberOfChannels;
+  const out = new AudioBuffer({ length: abuf.length, sampleRate: abuf.sampleRate, numberOfChannels: 2 });
+  const L = out.getChannelData(0), R = out.getChannelData(1);
+  let nl = 0, nr = 0;
+  for (let c = 0; c < nch; c++) if (c % 2 === 0) nl++; else nr++;
+  for (let c = 0; c < nch; c++) {
+    const d = abuf.getChannelData(c);
+    const dst = c % 2 === 0 ? L : R, div = c % 2 === 0 ? nl : nr;
+    for (let i = 0; i < d.length; i++) dst[i] += d[i] / div;
+  }
+  return out;
+}
+
+async function encodeAudioChunks(aencCfg, abuf) {
+  const chunks = [];
+  let aerr = null;
+  const aenc = new AudioEncoder({
+    output: (c, m) => chunks.push({ chunk: c, meta: m }),
+    error: (e) => { aerr = e; },
+  });
+  aenc.configure(aencCfg);
+  const ch = aencCfg.numberOfChannels, sr = aencCfg.sampleRate, total = abuf.length;
+  for (let off = 0; off < total; off += 1024) {
+    const len = Math.min(1024, total - off);
+    const planar = new Float32Array(ch * len);
+    for (let c = 0; c < ch; c++) planar.set(abuf.getChannelData(c).subarray(off, off + len), c * len);
+    const ad = new AudioData({ format: 'f32-planar', sampleRate: sr, numberOfFrames: len, timestamp: Math.round(off / sr * 1e6) });
+    aenc.encode(ad);
+    ad.close();
+    if (aerr) break;
+  }
+  await aenc.flush();
+  try { aenc.close(); } catch (e) {}
+  if (aerr) throw aerr;
+  return chunks;
+}
+
+// ---- on-device video removal: demux/decode (or seek) -> clean -> encode ----
+async function removeVideoLocal() {
+  const t0 = performance.now();
+  const tmp = [];
+  const track = (m) => { tmp.push(m); return m; };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  let vUrl = null, outUrl = null, mp4f = null, dec = null, venc = null, pv = null, actx = null;
+  const closeAll = () => {
+    try { if (dec) dec.close(); } catch (e) {}
+    try { if (venc) venc.close(); } catch (e) {}
+    try { if (mp4f) mp4f.stop(); } catch (e) {}
+    try { if (actx) actx.close(); } catch (e) {}
+    if (vUrl) { try { URL.revokeObjectURL(vUrl); } catch (e) {} vUrl = null; }
+  };
+  try {
+    if (!window.cv || !cvReady) throw { nocodec: true };
+    if (typeof VideoEncoder === 'undefined' || typeof AudioEncoder === 'undefined' ||
+        typeof VideoFrame === 'undefined' || typeof AudioData === 'undefined') throw { nocodec: true };
+    const libs = await loadMp4Libs();
+    const buf = await file.arrayBuffer();
+    if (!buf || !buf.byteLength) throw new Error('empty file');
+    const W = natW, H = natH;
+    if (!W || !H) throw new Error('bad size');
+
+    // --- metadata: exact fps/count when ISO-BMFF, else brief playback probe ---
+    // A demux failure never kills the job: we keep any fps already learned
+    // and fall back to seek-decoding (works in every browser).
+    let fps = 0, n = 0, seconds = 0, demux = null, needProbe = false;
+    try {
+      const opened = await openMp4(libs, buf);
+      fps = opened.fps; n = opened.n; seconds = opened.seconds;
+      mp4f = opened.file;
+      const desc = codecDescription(libs, mp4f, opened.trackId, opened.codec);
+      if ((opened.codec || '').startsWith('avc1') || (opened.codec || '').startsWith('avc3') ||
+          (opened.codec || '').startsWith('hvc1') || (opened.codec || '').startsWith('hev1')) {
+        if (!desc) throw new Error('no decoder description');
+      }
+      const decCfg = { codec: opened.codec, codedWidth: opened.tw || W, codedHeight: opened.th || H };
+      if (desc) decCfg.description = desc;
+      let ok = false;
+      try { ok = (await VideoDecoder.isConfigSupported(decCfg)).supported; } catch (e) { ok = false; }
+      if (!ok) throw new Error('decoder unsupported ' + opened.codec);
+      demux = { cfg: decCfg, trackId: opened.trackId, timescale: opened.timescale, total: opened.n };
+    } catch (e) {
+      if (mp4f) { try { mp4f.stop(); } catch (_) {} mp4f = null; }
+      if (e && e.nocodec) throw e;
+      if (!(fps > 0) || !(n > 0)) needProbe = true;
+    }
+
+    // --- offscreen sampler (independent of the visible preview) ---
+    pv = document.createElement('video');
+    pv.muted = true; pv.playsInline = true; pv.preload = 'auto';
+    vUrl = URL.createObjectURL(new Blob([buf], { type: file.type || 'video/mp4' }));
+    pv.src = vUrl;
+    await new Promise((res, rej) => {
+      const to = setTimeout(() => rej(new Error('bad meta')), 15000);
+      pv.onloadedmetadata = () => { clearTimeout(to); res(); };
+      pv.onerror = () => { clearTimeout(to); rej(new Error('bad meta')); };
+    });
+    if (needProbe) {
+      // Non-ISO container (webm/mkv/avi): measure fps with a brief playback.
+      fps = await probePlaybackFps(pv);
+      seconds = pv.duration;
+      if (!(seconds > 0) || !(fps > 0)) throw new Error('bad meta');
+      n = Math.max(1, Math.round(seconds * fps));
+    }
+    const work = document.createElement('canvas');
+    work.width = W; work.height = H;
+    const wctx = work.getContext('2d', { willReadFrequently: true });
+
+    // --- union mask from 5 spread frames ---
+    stageText.textContent = stg('working');
+    const u = await sampleUnionMask(pv, work, wctx, W, H, [0.02, 0.27, 0.5, 0.73, 0.98], sel, tmp);
+    const union = u.union, bbox = u.bbox, maskedPx = u.maskedPx;
+    fill.style.width = '8%';
+
+    // --- audio: decode + re-encode to AAC (opus fallback), then mux ---
+    let audioCfg = null;
+    const audioQueue = [];
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) throw new Error('no webaudio');
+      actx = new AC();
+      const abuf0 = await actx.decodeAudioData(buf.slice(0));
+      try { await actx.close(); } catch (e) {}
+      actx = null;
+      const stereo = downmixStereo(abuf0);
+      const ch = stereo.numberOfChannels, sr = stereo.sampleRate;
+      let acodec = 'aac';
+      let aencCfg = { codec: 'mp4a.40.2', sampleRate: sr, numberOfChannels: ch, bitrate: 192000 };
+      try {
+        const s = await AudioEncoder.isConfigSupported(aencCfg);
+        if (!s.supported) throw new Error('no aac');
+      } catch (e) {
+        acodec = 'opus';
+        aencCfg = { codec: 'opus', sampleRate: sr, numberOfChannels: ch, bitrate: 192000 };
+        const s2 = await AudioEncoder.isConfigSupported(aencCfg);
+        if (!s2.supported) throw new Error('no audio encoder');
+      }
+      const got = await encodeAudioChunks(aencCfg, stereo);
+      for (const g of got) audioQueue.push(g);
+      audioCfg = { codec: acodec, sampleRate: sr, numberOfChannels: ch };
+    } catch (e) {
+      audioCfg = null; // silent source (or undecodable audio): video-only output
+    }
+
+    // --- muxer + H.264 encoder ---
+    const vfps = Math.max(1, Math.round(fps));
+    const bitrate = Math.min(40000000, Math.max(2000000, Math.round(W * H * fps * 0.15)));
+    const vencCfg = { codec: H > 1080 ? 'avc1.640033' : 'avc1.640028', width: W, height: H, bitrate, framerate: vfps };
+    try {
+      const s = await VideoEncoder.isConfigSupported(vencCfg);
+      if (!s.supported) throw new Error('venc unsupported');
+    } catch (e) { throw { nocodec: true }; }
+    const target = new libs.ArrayBufferTarget();
+    const muxer = new libs.Muxer({
+      target,
+      video: { codec: 'avc', width: W, height: H },
+      ...(audioCfg ? { audio: audioCfg } : {}),
+      fastStart: 'in-memory',
+      firstTimestampBehavior: 'offset',
+    });
+    if (audioQueue.length) {
+      for (const g of audioQueue) muxer.addAudioChunk(g.chunk, g.meta);
+    }
+    let vencErr = null;
+    venc = new VideoEncoder({
+      output: (chunk, meta) => { try { muxer.addVideoChunk(chunk, meta); } catch (e) { vencErr = e; } },
+      error: (e) => { vencErr = e; },
+    });
+    venc.configure(vencCfg);
+
+    const frameDur = Math.round(1e6 / fps);
+    let doneCount = 0;
+    const showProg = () => {
+      const pct = Math.min(99, Math.round(100 * doneCount / n));
+      fill.style.width = pct + '%';
+      stageText.textContent = stg('working') + ' · ' + pct + '%';
+    };
+    const cleanCanvasFrame = (ts) => {
+      const ftmp = [];
+      try {
+        const rgba = ftmp.push(cv.imread(work)) && ftmp[ftmp.length - 1];
+        const rgb = ftmp.push(new cv.Mat()) && ftmp[ftmp.length - 1];
+        cv.cvtColor(rgba, rgb, cv.COLOR_RGBA2RGB);
+        cvFillWithMask(rgb, union, bbox, ftmp);
+        const out = ftmp.push(new cv.Mat()) && ftmp[ftmp.length - 1];
+        cv.cvtColor(rgb, out, cv.COLOR_RGB2RGBA);
+        cv.imshow(work, out);
+        const vf = new VideoFrame(work, { timestamp: ts, duration: frameDur });
+        venc.encode(vf, { keyFrame: doneCount % Math.max(1, Math.round(fps * 2)) === 0 });
+        vf.close();
+        if (vencErr) throw vencErr;
+      } finally {
+        for (const mm of ftmp) { try { mm.delete(); } catch (e) {} }
+      }
+    };
+    const waitQueue = async () => {
+      let guard = 0;
+      while (venc.encodeQueueSize > 4 && guard++ < 2000) await sleep(5);
+    };
+
+    if (demux) {
+      // Fast path: exact demux + hardware decode, timestamps preserved.
+      const vq = [];
+      let demuxErr = null, fed = 0, delivered = 0;
+      const ts = demux.timescale || 90000;
+      dec = new VideoDecoder({
+        output: (f) => { vq.push(f); },
+        error: (e) => { demuxErr = e; },
+      });
+      dec.configure(demux.cfg);
+      mp4f.onSamples = (id, user, samples) => {
+        for (const s of samples) {
+          delivered++;
+          try {
+            dec.decode(new EncodedVideoChunk({
+              type: s.is_sync ? 'key' : 'delta',
+              timestamp: Math.round(s.cts * 1e6 / ts),
+              duration: Math.round(s.duration * 1e6 / ts),
+              data: s.data,
+            }));
+          } catch (e) { demuxErr = e; }
+          fed++;
+        }
+        try {
+          if (delivered >= demux.total) { try { mp4f.stop(); } catch (e) {} }
+          else { try { mp4f.releaseUsedSamples(demux.trackId, fed); } catch (e) {} }
+        } catch (e) {}
+      };
+      mp4f.onError = (e) => { demuxErr = new Error('demux ' + e); };
+      mp4f.setExtractionOptions(demux.trackId, null, { nbSamples: demux.total });
+      mp4f.start();
+      while (true) {
+        if (demuxErr) throw demuxErr;
+        const fr = vq.shift();
+        if (fr) {
+          try {
+            wctx.drawImage(fr, 0, 0, W, H);
+          } finally { try { fr.close(); } catch (e) {} }
+          cleanCanvasFrame(fr.timestamp);
+          doneCount++;
+          showProg();
+          await waitQueue();
+          continue;
+        }
+        if (delivered >= demux.total) break;
+        await sleep(5);
+      }
+      try { await dec.flush(); } catch (e) { if (demuxErr) throw demuxErr; }
+      while (vq.length) {
+        const fr = vq.shift();
+        const tsF = fr.timestamp;
+        try { wctx.drawImage(fr, 0, 0, W, H); } finally { try { fr.close(); } catch (e) {} }
+        cleanCanvasFrame(tsF);
+        doneCount++;
+        showProg();
+        await waitQueue();
+      }
+      try { dec.close(); } catch (e) {}
+      dec = null;
+    } else {
+      // Universal path: seek-decode every frame at measured fps.
+      const dur = pv.duration;
+      for (let k = 0; k < n; k++) {
+        await seekTo(pv, Math.min(k / fps, Math.max(dur - 0.02, 0)));
+        wctx.drawImage(pv, 0, 0, W, H);
+        cleanCanvasFrame(Math.round(k * 1e6 / fps));
+        doneCount++;
+        showProg();
+        await waitQueue();
+        if (vencErr) throw vencErr;
+      }
+    }
+
+    await venc.flush();
+    if (vencErr) throw vencErr;
+    try { venc.close(); } catch (e) {}
+    venc = null;
+    muxer.finalize();
+    const outBuf = target.buffer;
+    if (!outBuf || !outBuf.byteLength) throw new Error('empty output');
+    outUrl = URL.createObjectURL(new Blob([outBuf], { type: 'video/mp4' }));
+
+    // --- show + download (mirrors the photo completion) ---
+    cleanWrap.innerHTML = '';
+    const cvv = document.createElement('video');
+    cvv.src = outUrl;
+    cvv.playsInline = true;
+    cleanWrap.appendChild(cvv);
+    cvv.onclick = () => { if (cvv.paused) cvv.play().catch(() => {}); else cvv.pause(); };
+    const dt = ((performance.now() - t0) / 1000).toFixed(1);
+    meta.innerHTML = `<span class="pill">◧ ${MSG.m_region} (${Math.round(sel.x)}, ${Math.round(sel.y)}, ${Math.round(sel.w)}×${Math.round(sel.h)})</span>
+      <span class="pill">◍ ${MSG.m_cleaned} <b>${maskedPx}</b> px</span>
+      <span class="pill">⏱ ${dt}s</span>`;
+    fill.style.width = '100%';
+    localSteps('done');
+    stageText.textContent = stg('done');
+    setPill(PILL.done, 'ok');
+    stopClock();
+    dlBox.style.display = 'block';
+    dlLink.href = outUrl;
+    const base = (file && file.name ? file.name : 'video').replace(/\.[^.]+$/, '');
+    dlLink.download = base + '_cleaned.mp4';
+    maxBtn.classList.add('on');
+    say(mf('m_done'), 'ok');
+    goBtn.disabled = false; clearBtn.disabled = false;
+  } catch (err) {
+    if (err && err.nocodec) {
+      say(mf('m_err') + mf('m_nocodec'), 'err');
+    } else {
+      say(mf('m_err') + mf('m_badfile'), 'err');
+    }
+    stageText.textContent = stg('failed');
+    setPill(PILL.error, 'err');
+    fill.style.width = '0%';
+    stopClock();
+    goBtn.disabled = false; clearBtn.disabled = false;
+  } finally {
+    for (const mm of tmp) { try { mm.delete(); } catch (e) {} }
+    closeAll();
+  }
+}
+
 goBtn.onclick = async () => {
   if (!sel) return;
-  if (kind !== 'image' && !jobId) return;
+  if (!cvReady) {
+    // Engine not ready yet (still downloading on first visit): wait for it.
+    stageText.textContent = mf('m_engine');
+    let ok = false;
+    try { ok = await ensureCv(); } catch (e) { ok = false; }
+    if (!ok || !cvReady) {
+      say(mf('m_err') + mf('m_nocodec'), 'err');
+      setPill(PILL.error, 'err');
+      stageText.textContent = stg('failed');
+      return;
+    }
+    stageText.textContent = stg('select');
+  }
   if (kind === 'video' && mediaEl && !mediaEl.paused) mediaEl.pause();
   goBtn.disabled = true; clearBtn.disabled = true;
   feed.innerHTML=''; shownLogs=0; meta.innerHTML=''; dlBox.style.display='none';
   try { if (dlLink.href && dlLink.href.indexOf('blob:') === 0) URL.revokeObjectURL(dlLink.href); } catch (e) {}
   dlLink.removeAttribute('download');
-  startClock(); setPill(PILL.working, 'work');
+  startClock(); setPill(PILL.working, 'work'); localSteps('work');
   say(mf('m_removing', Math.round(sel.x), Math.round(sel.y), Math.round(sel.w), Math.round(sel.h)));
   stageText.textContent = stg('working');
-  if (kind === 'image' && cvReady) { await removeImageLocal(); return; }
-  if (!jobId) {
-    // On-device engine unavailable (offline or unsupported browser):
-    // fall back to the server pipeline for this file.
-    const ok = await ensureServerJob();
-    if (!ok) { stopClock(); goBtn.disabled = false; clearBtn.disabled = false; return; }
-  }
-  await startServerProcess();
-};
-
-// Uploads the current file and parks the returned job id. Reports errors
-// itself; returns true only when a job is ready. Used by the video flow
-// (at selection time) and the image fallback (at Remove time).
-async function ensureServerJob() {
-  const j = await uploadWithProgress(file);
-  uploadXHR = null;
-  if (!j || j.error === 'ABORTED') return false;
-  if (j.error) {
-    if (j.error === 'TOOBIG') say(mf('m_err') + mf('m_toobig'), 'err');
-    else if (j.error === 'UPFAIL') say(mf('m_err') + mf('m_upfail'), 'err');
-    else say(mf('m_err') + j.error, 'err');
-    setPill(PILL.error, 'err');
-    stageText.textContent = stg('failed');
-    fill.style.width = '0%';
-    return false;
-  }
-  say(mf('m_uploaded', file.name));
-  jobId = j.job_id;
-  if (j.steps) renderSteps(j.steps);
-  return true;
-}
-
-async function startServerProcess() {
-  const r = await fetch('/api/process/' + jobId, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ box: [sel.x, sel.y, sel.w, sel.h] })
-  }).catch(() => null);
-  if (!r) {
-    say(mf('m_err') + mf('m_lost'), 'err');
-    stageText.textContent = stg('failed'); setPill(PILL.error, 'err');
-    goBtn.disabled = false; clearBtn.disabled = false; stopClock(); return;
-  }
-  const j = await r.json().catch(() => ({ error: 'UPFAIL' }));
-  if (j.error) { say(mf('m_err') + j.error, 'err'); stageText.textContent = stg('failed'); setPill(PILL.error, 'err'); goBtn.disabled = false; stopClock(); return; }
-  pollFails = 0;
-  timer = setInterval(poll, 600);
-};
-
-async function poll() {
-  let j = null;
   try {
-    const r = await fetch('/api/status/' + jobId);
-    j = await r.json();
-    pollFails = 0;
+    if (kind === 'image') await removeImageLocal();
+    else await removeVideoLocal();
   } catch (e) {
-    // Transient blip: keep waiting. Persistent outage: stop and say so
-    // instead of spinning the progress bar forever.
-    if (++pollFails >= 10) {
-      clearInterval(timer); stopClock();
-      stageText.textContent = stg('failed'); setPill(PILL.error, 'err');
-      say(mf('m_err') + mf('m_lost'), 'err');
-      goBtn.disabled = false; clearBtn.disabled = false;
-    }
-    return;
-  }
-  if (!j) return;
-  if (j.error) {
-    // The job is gone — e.g. the host restarted under memory pressure and
-    // the in-memory job table was wiped. Stop polling and say so plainly
-    // instead of rendering "undefined".
-    clearInterval(timer); stopClock();
-    stageText.textContent = stg('failed'); setPill(PILL.error, 'err');
-    say(mf('m_err') + mf('m_lost'), 'err');
+    say(mf('m_err') + mf('m_badfile'), 'err');
+    stageText.textContent = stg('failed');
+    setPill(PILL.error, 'err');
+    fill.style.width = '0%';
+    stopClock();
     goBtn.disabled = false; clearBtn.disabled = false;
-    return;
   }
-  fill.style.width = (j.progress||0) + '%';
-  if (j.steps) renderSteps(j.steps);
-  stageText.textContent = stg(j.stage) + ' · ' + (j.progress||0) + '%';
-  while (shownLogs < j.logs.length) {
-    const line = j.logs[shownLogs].replace(/^\[.*?\]\s*/, '');
-    say(line, j.done && !j.error && shownLogs === j.logs.length-1 ? 'ok' : '');
-    shownLogs++;
-  }
-  if (j.region) {
-    const d = j.region;
-    meta.innerHTML = `<span class="pill">◧ ${MSG.m_region} (${d.x}, ${d.y}, ${d.w}×${d.h})</span>
-      <span class="pill">◍ ${MSG.m_cleaned} <b>${d.masked_px ?? '—'}</b> px</span>
-      <span class="pill">⏱ ${j.elapsed ?? 0}s</span>`;
-  }
-  if (j.done) {
-    clearInterval(timer); stopClock();
-    goBtn.disabled = false; clearBtn.disabled = false;
-    if (j.error) { stageText.textContent = stg('failed'); say(mf('m_err') + j.error, 'err'); setPill(PILL.error, 'err'); }
-    else {
-      stageText.textContent = stg('done');
-      setPill(PILL.done, 'ok');
-      dlBox.style.display = 'block';
-      dlLink.href = '/api/download/' + jobId;
-      dlLink.removeAttribute('download'); // may hold a stale on-device filename
-      const viewUrl = '/api/download/' + jobId + '?view=1';
-      cleanWrap.innerHTML = kind === 'image'
-        ? `<img src="${viewUrl}" alt="cleaned"/>`
-        : `<video src="${viewUrl}" playsinline></video>`;
-      if (kind === 'video') {
-        const cv = cleanWrap.querySelector('video');
-        cv.onclick = () => { if (cv.paused) cv.play().catch(() => {}); else cv.pause(); };
-      }
-      maxBtn.classList.add('on');
-      say(mf('m_done'), 'ok');
-    }
-  }
-}
+};
+
 </script>
 </body>
 </html>
